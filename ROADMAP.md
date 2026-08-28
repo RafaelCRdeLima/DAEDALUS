@@ -1,0 +1,174 @@
+# ROADMAP.md — etapas e estado dos testes de aceitação
+
+Regra: **cada etapa só fecha com os seus testes passando.**
+
+## Testes de aceitação
+
+| # | O que verifica | Estado |
+|---|---|---|
+| 0 | `J_k` contra tabela externa de alta precisão (Wolfram × mpmath) | ✅ `t00_bessel_table.c` |
+| 1 | Conservação da norma: desvio `< 1e-12` em 10⁴ passos | ✅ **7,5e-13** (pior de 5 limites espectrais) + envoltória em α |
+| 2 | Linha infinita: `ψ_j(t) = i^d J_d(2γt)`, erro `< 1e-10` | ✅ **1,3e-16** |
+| 3 | Ciclo `C_N`: espectro `−2γ cos(2πk/N)`, solução fechada | ✅ **5,1e-15** |
+| 4 | Grafo completo `K_N`: dinâmica efetiva de dois níveis | ✅ **1,8e-15** |
+| 5 | Chebyshev × diagonalização exata, `N = 200`, erro `< 1e-10` | ✅ **4,8e-13** |
+| 6 | WASM × nativo: mesma cena, concordância `< 1e-14` | ✅ **0,0 — 100% bit a bit idêntico** em 17 341 números |
+| 7 | C++ exportado × navegador: mesmos observáveis | ✅ **0,0 — bit a bit** em 9 casos, α de 0,13 a 100,8 |
+| 8 | Determinismo do gerador: mesma semente, mesmo grafo | 🟨 nativo ✅, nativo × WASM ✅ (impressão digital inteira da CSR bate); falta o `.cpp` exportado, etapa 5 |
+
+O teste 0 não estava no plano original. Ele foi acrescentado porque o teste 2
+usa a mesma rotina de Bessel nos dois lados da igualdade (`J_k(a·dt)` nos
+coeficientes de Chebyshev e `J_j(2γt)` na solução analítica), e um erro de fase
+ou de normalização poderia se cancelar parcialmente e passar.
+
+## Etapas
+
+### 1. Núcleo C — ✅ completa
+
+CSR, Chebyshev, observáveis, PRNG, hamiltoniano com escala fixada. Binário
+nativo e testes 0–5, mais o 8 parcial.
+
+Entregue além do combinado, porque os testes 2–5 são definidos sobre elas: as
+**famílias de referência analítica** (linha, ciclo, `K_N`, hipercubo, grade 2D)
+e a importação de lista de arestas. Também `t91_conventions.c`, que segura as
+invariantes que quebram em silêncio: deduplicação, concurrence intramódulo,
+NaN de `p_alvo`, cota espectral, cache de `dt`.
+
+Desempenho medido (`make -C native bench`, grade de 500 pontos):
+
+| `N` | `dt = 0.1` | `dt = 1.0` | meta |
+|---|---|---|---|
+| 1 300 | 0,053 s | 0,082 s | `< 0,2 s` ✅ |
+| 10 010 | 0,532 s | 0,762 s | `< 3 s` ✅ |
+| 50 011 | — | 4,55 s | acima do teto interativo: exportar |
+
+### 2. Geradores de grafo — ✅ completa
+
+Lattice microtubular com `seam_shift` e pontas abertas (CONVENTIONS.md parte 5),
+partição em módulos ao longo do eixo longitudinal, religação Watts–Strogatz com
+`|E|` invariante, modo de acréscimo, SBM. Métricas: `λ₂` de Fiedler com
+critério de convergência, modularidade `Q` de Newman ponderada, grau médio,
+`|E|`, número de componentes, comprimento médio de caminho.
+
+Testes novos: `t92_microtubule.c` (contagem de arestas contra fórmula fechada,
+localização sítio a sítio dos buracos da costura, módulos, determinismo),
+`t93_connectivity.c` (`|E|` invariante sob religação em `p ∈ {0, 0.1, 0.5, 1}`,
+crescimento sob acréscimo, casos limite exatos do SBM), `t94_metrics.c` (`λ₂`
+contra forma fechada em ciclo/linha/`K_N`/hipercubo, contra Jacobi denso em
+três regimes de modularidade, resíduo como cota rigorosa, e o caso de
+não-convergência).
+
+Três correções que a medição impôs, todas em CONVENTIONS.md:
+
+- **`K ≈ 1.2α + 20` era teto, e é chute** (parte 6.2). Como teto, truncava a
+  série com `|2 J_K|` ainda em 1,9e-11 na faixa `α ≈ 20–100` — 4,2e-13 de
+  deriva da norma por passo em `α = 50`, contra 5,5e-17 em `α = 5`. Defeito
+  não-monotônico em α, invisível para um teste de um α só. Quem manda agora é
+  a cauda.
+- **Nenhum Lanczos toca o PRNG compartilhado** (parte 4), por assinatura.
+- **A costura não deixa as arestas faltantes numa ponta só** (parte 5): deixa
+  `s` sítios órfãos em cada extremidade, em protofilamentos diferentes.
+
+### 3. WASM — ✅ completa
+
+`emcc 6.0.8`, `-O3 -msimd128`, sem pthreads e sem `SharedArrayBuffer`. Módulo
+de 52 KB. Ponte em `wasm/bridge.c`, camada JS em `wasm/daedalus.mjs`, Web
+Worker em `wasm/dae.worker.mjs` avançando em blocos de 25 passos — o
+cancelamento mora no lado JS, sem callback atravessando a fronteira.
+
+**Teste 6 fecha com folga inesperada:** 17 341 números, **100% bit a bit
+idênticos** entre WASM e nativo, não apenas dentro de 1e-14. O `-msimd128` não
+reassocia soma de ponto flutuante, então o SpMV esparso soma na mesma ordem nos
+dois alvos. O comparador passou a exigir um **piso de 99% de identidade bit a
+bit** além da tolerância: cair para "dentro da tolerância, mas reassociado" é
+sinal de flag de compilação nova e tem de falhar, não virar um número um pouco
+pior.
+
+A suíte **inteira** roda sob WASM (`make -C native wasm-test`): 368
+verificações, incluindo a que exige `p_alvo = NaN`. É o portão contra
+`-ffast-math` herdado — mais barato e mais confiável que auditar flags.
+
+Fronteira de memória: `wasm/teste_memoria.mjs` faz o heap crescer de propósito
+e verifica as duas metades — que a view guardada morre (`byteLength = 0`) e que
+a refeita continua certa. Ver CONVENTIONS.md, parte 9.1.
+
+Desempenho no alvo real, a ~6% do nativo:
+
+| `N` | WASM `dt=1` | nativo `dt=1` | meta |
+|---|---|---|---|
+| 1 300 | 0,090 s | 0,081 s | `< 0,2 s` ✅ |
+| 10 010 | 0,796 s | 0,754 s | `< 3 s` ✅ |
+
+### 4. Interface mínima — ✅ completa
+
+Vite + React + TypeScript, no mesmo modelo do Tessera. Editor de parâmetros,
+heatmap WebGL2 da rede desenrolada, séries temporais em SVG, seleção de sítio
+inicial e alvo por clique, transporte com play/pause/scrub, e o núcleo rodando
+em Web Worker — a interface nunca bloqueia.
+
+Bundle estático: 211 kB de JS (67 kB comprimido) + 78 kB de worker com o WASM
+embutido em base64 (`-sSINGLE_FILE`). Um `import`, um arquivo, nenhuma
+configuração de servidor.
+
+As três defesas contra "erro vira imagem plausível" estão em CONVENTIONS.md,
+parte 10: mapeamento e paleta isolados e testados, fixtures com resposta
+analítica **mais** anti-vacuidade, norma permanente na tela, e `npm run fumaca`
+lendo os pixels de volta do canvas.
+
+Dois bugs que a etapa produziu e que valem registro, porque nenhum deles
+apareceria como número errado:
+
+- **O wrapper JS zerava `j_par` e `j_perp`**, montando o vetor de parâmetros com
+  zeros em vez de partir dos padrões do núcleo. O grafo saía com o número certo
+  de arestas, todas de peso nulo, e o estado não se movia — o que na tela parece
+  localização. Quem pegou foi o caso de anti-vacuidade da fixture. Corrigido em
+  `dae_ws_params_default`: quem sabe os padrões é o C.
+- **Closure velho no `onmessage` do worker**: registrado uma vez, congelava o
+  `desenhar` do primeiro render, quando `rede` ainda era `null`. Sintoma cruel —
+  séries temporais corretas e mapa preto, o que parece problema de WebGL e não
+  de React. É o bug que `npm run fumaca` existe para pegar.
+
+### 5. `spec.json` e exportadores — ✅ completa
+
+Parser JSON estrito em C (`dae_spec.c`, ~500 linhas), modos procedimental e
+explícito, `dae_run`, escritor de CSV único (`dae_csv.c`), CLI `daedalus run
+spec.json`, e os três emissores. O `spec.json` virou a **única** entrada da
+ponte WASM: o vetor de parâmetros provisório da etapa 3 foi removido.
+
+**Duas naturezas de exportador**, e a diferença é de projeto:
+
+- **`.cpp`** REGENERA tudo — núcleo amalgamado + spec embutido, reconstruindo o
+  grafo a partir da semente. É isso que faz dele um teste do EMISSOR: parâmetro
+  serializado errado muda o grafo, e a impressão digital diverge antes de
+  qualquer observável.
+- **`.wl` e `.py`** RECEBEM a lista de arestas explícita. Reimplementar o
+  gerador em Wolfram criaria uma segunda implementação do que a amalgamação
+  mantém única, e um oráculo que reproduz o mesmo engano do gerador não é
+  oráculo. Em troca, o alcance deles é o propagador e a grade de tempo.
+
+**Teste 7**: navegador (WASM) × nativo × `.cpp` exportado, mesmo `spec.json`,
+9 casos — **todos bit a bit idênticos**. A impressão digital do grafo é a
+primeira linha comparada, e o comparador diz explicitamente "os dois lados
+construíram grafos diferentes: isso é o emissor, não o propagador".
+
+A varredura é em **α = a·dt**, não em `dt`: é α que a fórmula da ordem usa, e a
+grade exportada tem `dt` livre com `a` dependendo da normalização. Cobertos
+0,134 a 100,8 — e a varredura tem sua própria anti-vacuidade, exigindo que a
+faixa coberta passe de duas ordens de grandeza.
+
+Dois bugs de buffer encontrados no caminho, ambos na mesma classe: `snprintf`
+devolve o tamanho **pretendido**, não o escrito, e copiar esse número de um
+buffer truncado é leitura fora de limite. O lixo continha um NUL, o `fwrite`
+com `strlen` cortava o CSV logo depois do cabeçalho, e o comparador via "sem
+tabela" em vez de "arquivo truncado".
+
+### 6. Varredura, reimportação, i18n, tutorial — ⬜ (próxima)
+
+Modo de varredura com barras de erro, reimportação de CSV/HDF5 do cluster,
+português/inglês/francês/italiano, tutorial em `/tutorial/`.
+
+## Fase 2 (arquitetura já preparada, não implementar ainda)
+
+Defasagem tipo Haken–Strobl por **trajetórias quânticas com saltos**, mantendo
+vetores `O(N)`. Nunca propagar a matriz densidade densa: `N²` seriam 6,8 M
+elementos em `N = 2600`.

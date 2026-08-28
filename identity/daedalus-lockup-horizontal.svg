@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 120" width="540" height="120" role="img" aria-label="Daedalus, continuous-time quantum walks on graphs">
+  <title>Daedalus</title>
+  <g transform="translate(10 10)">
+    <path d="M19 19 V81 M19 19 H81 V81 H19 M19 34.5 H65.5 V65.5 H19 M19 50 H50"
+          fill="none" stroke="#101A24" stroke-width="6.5" stroke-linecap="square" stroke-linejoin="miter"/>
+    <g fill="#B5813C">
+      <circle cx="81" cy="19" r="5.5"/><circle cx="81" cy="81" r="5.5"/>
+      <circle cx="65.5" cy="34.5" r="5.5"/><circle cx="65.5" cy="65.5" r="5.5"/>
+      <circle cx="50" cy="50" r="5.5"/>
+    </g>
+  </g>
+  <line x1="132" y1="26" x2="132" y2="94" stroke="#101A24" stroke-width="1" opacity="0.2"/>
+  <text x="158" y="58" font-family="Space Grotesk, Inter, Helvetica, Arial, sans-serif"
+        font-size="34" font-weight="500" letter-spacing="10.2" fill="#101A24">DAEDALUS</text>
+  <text x="160" y="82" font-family="IBM Plex Mono, ui-monospace, monospace"
+        font-size="11" letter-spacing="1.5" fill="#7C8892">CONTINUOUS-TIME QUANTUM WALKS ON GRAPHS</text>
+</svg>

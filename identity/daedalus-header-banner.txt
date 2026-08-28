@@ -1,0 +1,18 @@
+Cabecalho de proveniencia para codigo exportado.
+Substitua os campos entre colchetes na geracao.
+
+// ##############   DAEDALUS [versao]
+// #            #   continuous-time quantum walks on graphs
+// ##########   #
+// #        #   #   graph      : [gerador] [parametros]
+// ######   #   #   vertices   : [n]   edges : [m]
+// #        #   #   H          : [adjacency | laplacian | normalized | custom]
+// ##########   #   gamma      : [g]
+// #            #   t          : [t0] .. [t1]  ([steps] amostras)
+// ##############   psi(0)     : [vertice ou vetor]
+//                  graph hash : [sha256-8]
+//                  exported   : [ISO-8601]
+
+Python: troque // por #
+Wolfram Language: envolva em (* ... *)
+Sem UTF-8: o bloco ja usa apenas caracteres ASCII.

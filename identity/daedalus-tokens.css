@@ -1,0 +1,38 @@
+:root {
+  --dd-ink:        #101A24;
+  --dd-aegean:     #17557C;
+  --dd-bronze:     #B5813C;
+  --dd-icarus:     #E5A83F;
+  --dd-marble:     #F3EFE5;
+  --dd-wax:        #7C8892;
+  --dd-terracotta: #A8452C;
+  --dd-olive:      #2F7D6A;
+
+  --dd-mode-lab:    #17557C;
+  --dd-mode-lab-fg: #8FC2E4;
+  --dd-mode-export: #B5813C;
+  --dd-mode-export-fg: #E5A83F;
+
+  --dd-h-adjacency:  #17557C;
+  --dd-h-laplacian:  #2F7D6A;
+  --dd-h-normalized: #B5813C;
+  --dd-h-custom:     #7C3C68;
+
+  --dd-vertex-source: #E5A83F;
+  --dd-vertex-target: #A8452C;
+  --dd-vertex-idle:   #7C8892;
+
+  --dd-canvas:   #0B1219;
+  --dd-panel:    #17222E;
+  --dd-hairline: rgba(243, 239, 229, 0.12);
+  --dd-fg:       #F3EFE5;
+  --dd-fg-muted: #9AA6B0;
+
+  --dd-font-display: "Space Grotesk", Inter, system-ui, sans-serif;
+  --dd-font-text:    Inter, system-ui, sans-serif;
+  --dd-font-mono:    "IBM Plex Mono", ui-monospace, monospace;
+
+  --dd-prob-light: linear-gradient(90deg,#F3EFE5,#E8D5A6 15%,#E5A83F 30%,#CE7A2C 50%,#A8452C 70%,#5E2438 85%,#101A24);
+  --dd-prob-dark:  linear-gradient(90deg,#101A24,#1C3A56 18%,#17557C 34%,#3F7C74 52%,#9C9A3E 70%,#E5A83F 86%,#FCE9C0);
+  --dd-phase:      linear-gradient(90deg,#17557C,#2F7D6A 12.5%,#7E9A3C 25%,#D2A03A 37.5%,#C0632B 50%,#A8452C 62.5%,#7C3C68 75%,#45408F 87.5%,#17557C);
+}

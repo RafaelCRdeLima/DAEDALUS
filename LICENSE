@@ -1,0 +1,49 @@
+Copyright (c) 2026 Rafael C. R. de Lima. Todos os direitos reservados.
+
+Este repositório é privado. O código-fonte do Daedalus não é distribuído e não
+há licença concedida para usar, copiar, modificar, distribuir ou hospedar o
+código, nem os arquivos de identidade visual.
+
+O que está liberado é o PROGRAMA. O Daedalus pode ser usado por qualquer
+pessoa, para qualquer fim, sem custo e sem cadastro, no endereço em que estiver
+publicado — em sala de aula, em pesquisa, em artigo. As redes, as simulações,
+os arquivos exportados e as figuras que você produz com ele são seus. Usar o
+programa não concede licença sobre o código dele.
+
+O código que o Daedalus EMITE — os arquivos C++, Wolfram Language e Python
+gerados pelos exportadores — é seu, para compilar, rodar, modificar e publicar
+como quiser, inclusive junto com o material suplementar de um artigo. Essa
+liberação vale para o arquivo gerado como um todo, incluindo o núcleo numérico
+embutido nele.
+
+Para qualquer outro uso — incluir o Daedalus em outro projeto, publicar uma
+cópia, derivar uma versão — peça autorização ao autor.
+
+Observação técnica, não jurídica: o Daedalus roda inteiro no navegador, de modo
+que o JavaScript e o WebAssembly publicados são legíveis por quem abrir as
+ferramentas do desenvolvedor. Este aviso trata de permissão, não de sigilo.
+
+--------------------------------------------------------------------------------
+
+Copyright (c) 2026 Rafael C. R. de Lima. All rights reserved.
+
+This repository is private. The Daedalus source code is not distributed and no
+licence is granted to use, copy, modify, distribute or host the code, nor the
+visual identity files.
+
+What is free is the PROGRAM. Anyone may use Daedalus, for any purpose, at no
+cost and without signing up, wherever it is published — in class, in research,
+in a paper. The networks, simulations, exported files and figures you produce
+with it are yours. Using the program grants no licence over its code.
+
+The code Daedalus EMITS — the C++, Wolfram Language and Python files produced
+by the exporters — is yours, to compile, run, modify and publish as you wish,
+including as supplementary material to a paper. This release covers the
+generated file as a whole, including the numerical core embedded in it.
+
+For anything else — bundling Daedalus into another project, publishing a copy,
+deriving a version — ask the author for permission.
+
+A technical note, not a legal one: Daedalus runs entirely in the browser, so
+the published JavaScript and WebAssembly are readable by anyone who opens the
+developer tools. This notice is about permission, not secrecy.

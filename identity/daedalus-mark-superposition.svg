@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 112 112" width="112" height="112" role="img" aria-label="Daedalus">
+  <title>Daedalus em superposicao</title>
+  <g fill="none" stroke-width="8" stroke-linecap="square" stroke-linejoin="miter">
+    <path d="M19 19 V81 M19 19 H81 V81 H19 M19 34.5 H65.5 V65.5 H19 M19 50 H50"
+          stroke="#E5A83F" opacity="0.18" transform="translate(12 12)"/>
+    <path d="M19 19 V81 M19 19 H81 V81 H19 M19 34.5 H65.5 V65.5 H19 M19 50 H50"
+          stroke="#E5A83F" opacity="0.38" transform="translate(6 6)"/>
+    <path d="M19 19 V81 M19 19 H81 V81 H19 M19 34.5 H65.5 V65.5 H19 M19 50 H50"
+          stroke="#F3EFE5"/>
+  </g>
+</svg>

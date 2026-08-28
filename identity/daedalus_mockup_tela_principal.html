@@ -1,0 +1,102 @@
+<div style="padding:0.5rem 0;">
+<h2 style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap">Mockup da tela principal do Daedalus em tema escuro, com canvas do grafo colorido por probabilidade, painel de parâmetros e rodapé de proveniência.</h2>
+
+<div style="background:#0B1219;border-radius:12px;overflow:hidden;font-family:var(--font-sans);">
+
+  <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid rgba(243,239,229,.10);">
+    <svg width="22" height="22" viewBox="0 0 100 100" aria-hidden="true"><path d="M19 19 V81 M19 19 H81 V81 H19 M19 34.5 H65.5 V65.5 H19 M19 50 H50" fill="none" stroke="#F3EFE5" stroke-width="9" stroke-linecap="square" stroke-linejoin="miter"/></svg>
+    <span style="font-size:15px;font-weight:500;letter-spacing:.16em;color:#F3EFE5;">DAEDALUS</span>
+    <span style="font-size:12px;padding:3px 10px;border-radius:99px;background:rgba(23,85,124,.35);border:1px solid #2C77A8;color:#8FC2E4;">Laboratório · local</span>
+    <span style="flex:1;"></span>
+    <span style="font-family:var(--font-mono);font-size:11px;color:#7C8892;">mt-13x8-modular.dwk</span>
+  </div>
+
+  <div style="display:grid;grid-template-columns:minmax(0,1fr) 212px;">
+
+    <div style="padding:14px 16px;border-right:1px solid rgba(243,239,229,.10);">
+      <svg width="100%" viewBox="0 0 430 250" role="img"><title>Grafo modular</title><desc>Três módulos com amplitude concentrada no módulo da esquerda.</desc>
+        <g stroke="#F3EFE5" stroke-opacity=".22" stroke-width="1" fill="none">
+          <path d="M88 115L60 90M88 115L110 80M88 115L65 150M88 115L115 145M60 90L110 80M65 150L115 145"/>
+          <path d="M212 125L190 75M212 125L240 105M212 125L185 165M212 125L235 175M190 75L240 105M185 165L235 175"/>
+          <path d="M338 122L310 85M338 122L360 95M338 122L315 160M338 122L365 155M310 85L360 95M315 160L365 155"/>
+        </g>
+        <g stroke="#E5A83F" stroke-opacity=".45" stroke-width="1.4" fill="none" stroke-dasharray="4 3">
+          <path d="M110 80L190 75M115 145L185 165M240 105L310 85M235 175L315 160"/>
+        </g>
+        <circle cx="88" cy="115" r="16" fill="none" stroke="#FCE9C0" stroke-opacity=".35" stroke-width="1"/>
+        <g stroke="#0B1219" stroke-width="1.5">
+          <circle cx="88" cy="115" r="11" fill="#FCE9C0"/>
+          <circle cx="60" cy="90" r="9" fill="#E5A83F"/>
+          <circle cx="110" cy="80" r="9" fill="#E5A83F"/>
+          <circle cx="65" cy="150" r="8" fill="#C69A3B"/>
+          <circle cx="115" cy="145" r="8" fill="#9C9A3E"/>
+          <circle cx="190" cy="75" r="7" fill="#5E8A5C"/>
+          <circle cx="240" cy="105" r="7" fill="#3F7C74"/>
+          <circle cx="212" cy="125" r="8" fill="#3F7C74"/>
+          <circle cx="185" cy="165" r="6" fill="#2A6B84"/>
+          <circle cx="235" cy="175" r="6" fill="#17557C"/>
+          <circle cx="310" cy="85" r="6" fill="#17557C"/>
+          <circle cx="360" cy="95" r="5" fill="#1C3A56"/>
+          <circle cx="338" cy="122" r="6" fill="#1C3A56"/>
+          <circle cx="315" cy="160" r="5" fill="#1C3A56"/>
+          <circle cx="365" cy="155" r="5" fill="#152C42"/>
+        </g>
+      </svg>
+
+      <div style="display:flex;align-items:center;gap:10px;margin-top:10px;">
+        <span style="font-family:var(--font-mono);font-size:10px;color:#7C8892;">0.00</span>
+        <div style="flex:1;height:10px;border-radius:5px;background:linear-gradient(90deg,#101A24,#1C3A56 18%,#17557C 34%,#3F7C74 52%,#9C9A3E 70%,#E5A83F 86%,#FCE9C0);"></div>
+        <span style="font-family:var(--font-mono);font-size:10px;color:#7C8892;">0.31</span>
+        <span style="font-family:var(--font-mono);font-size:10px;color:#7C8892;">|ψᵢ|²</span>
+      </div>
+    </div>
+
+    <div style="padding:14px;">
+      <p style="font-size:11px;letter-spacing:.1em;color:#7C8892;margin:0 0 6px;">GERADOR</p>
+      <div style="display:flex;align-items:center;gap:8px;background:#17222E;border:1px solid rgba(243,239,229,.12);border-radius:8px;padding:7px 9px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E5A83F" stroke-width="1.4" aria-hidden="true"><path d="M6 3v18M18 3v18" opacity=".6"/><g fill="#E5A83F" stroke="none"><circle cx="8.5" cy="5.5" r="1.5"/><circle cx="12" cy="4" r="1.5"/><circle cx="15.5" cy="5.5" r="1.5"/><circle cx="8.5" cy="12" r="1.5"/><circle cx="12" cy="10.5" r="1.5"/><circle cx="15.5" cy="12" r="1.5"/><circle cx="8.5" cy="18.5" r="1.5"/><circle cx="12" cy="17" r="1.5"/><circle cx="15.5" cy="18.5" r="1.5"/></g></svg>
+        <span style="font-size:13px;color:#F3EFE5;">Microtúbulo 13×8</span>
+      </div>
+
+      <p style="font-size:11px;letter-spacing:.1em;color:#7C8892;margin:16px 0 6px;">HAMILTONIANO</p>
+      <div style="display:flex;border:1px solid rgba(243,239,229,.12);border-radius:8px;overflow:hidden;">
+        <span style="flex:1;text-align:center;font-size:12px;padding:6px 0;background:#17557C;color:#F3EFE5;">Adjacência</span>
+        <span style="flex:1;text-align:center;font-size:12px;padding:6px 0;color:#9AA6B0;">Laplaciano</span>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;margin:16px 0 6px;">
+        <span style="font-size:11px;letter-spacing:.1em;color:#7C8892;">γ</span>
+        <span style="font-family:var(--font-mono);font-size:11px;color:#F3EFE5;">1.00</span>
+      </div>
+      <div style="height:4px;border-radius:2px;background:rgba(243,239,229,.14);position:relative;">
+        <div style="width:46%;height:4px;border-radius:2px;background:#2C77A8;"></div>
+        <div style="position:absolute;left:44%;top:-5px;width:14px;height:14px;border-radius:50%;background:#F3EFE5;"></div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;margin:16px 0 6px;">
+        <span style="font-size:11px;letter-spacing:.1em;color:#7C8892;">t</span>
+        <span style="font-family:var(--font-mono);font-size:11px;color:#F3EFE5;">4.20</span>
+      </div>
+      <div style="height:4px;border-radius:2px;background:rgba(243,239,229,.14);position:relative;">
+        <div style="width:70%;height:4px;border-radius:2px;background:#2C77A8;"></div>
+        <div style="position:absolute;left:68%;top:-5px;width:14px;height:14px;border-radius:50%;background:#F3EFE5;"></div>
+      </div>
+
+      <p style="font-size:11px;letter-spacing:.1em;color:#7C8892;margin:18px 0 6px;">OBSERVÁVEIS</p>
+      <svg width="100%" viewBox="0 0 180 44" aria-hidden="true">
+        <g fill="#3F7C74"><rect x="2" y="18" width="8" height="26"/><rect x="14" y="8" width="8" height="36"/><rect x="26" y="24" width="8" height="20"/><rect x="38" y="30" width="8" height="14"/><rect x="50" y="22" width="8" height="22"/><rect x="62" y="34" width="8" height="10"/><rect x="74" y="28" width="8" height="16"/><rect x="86" y="36" width="8" height="8"/><rect x="98" y="32" width="8" height="12"/><rect x="110" y="38" width="8" height="6"/><rect x="122" y="35" width="8" height="9"/><rect x="134" y="40" width="8" height="4"/><rect x="146" y="38" width="8" height="6"/><rect x="158" y="41" width="8" height="3"/><rect x="170" y="42" width="8" height="2"/></g>
+        <rect x="14" y="8" width="8" height="36" fill="#E5A83F"/>
+      </svg>
+
+      <div style="display:flex;align-items:center;justify-content:center;gap:7px;margin-top:16px;border:1px solid #B5813C;border-radius:8px;padding:8px 0;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#E5A83F" stroke-width="1.75" stroke-linecap="square" stroke-linejoin="miter" aria-hidden="true"><path d="M4 14v6h16v-6M12 3v11M7.5 7.5L12 3l4.5 4.5"/></svg>
+        <span style="font-size:13px;color:#E5A83F;">Exportar C++</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:18px;padding:8px 16px;border-top:1px solid rgba(243,239,229,.10);font-family:var(--font-mono);font-size:10px;color:#7C8892;">
+    <span>Σ|ψ|² = 1.000000</span><span>104 vértices</span><span>312 arestas</span><span>hash 7f3ab19c</span><span style="flex:1;"></span><span>WASM · 58 fps</span>
+  </div>
+</div>
+</div>

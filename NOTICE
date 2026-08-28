@@ -1,0 +1,37 @@
+# NOTICE — atribuições de terceiros
+
+O Daedalus não liga nenhuma biblioteca de terceiros no binário publicado. O
+núcleo numérico é escrito do zero e a página é um pacote estático puro, sem
+chamada de rede em tempo de execução.
+
+O que segue são atribuições de ALGORITMOS e de DADOS DE REFERÊNCIA, não de
+código copiado.
+
+--------------------------------------------------------------------------------
+
+## xoshiro256++ e splitmix64  (core/dae_rng.c)
+
+Algoritmos de David Blackman e Sebastiano Vigna, publicados com dedicação ao
+domínio público (CC0). https://prng.di.unimi.it/
+
+A implementação em `core/dae_rng.c` foi escrita a partir da descrição
+publicada do algoritmo.
+
+## Recorrência regressiva de Miller  (core/dae_bessel.c)
+
+Método clássico para funções de Bessel de primeira espécie, com normalização
+por J_0(x) + 2·Σ J_2m(x) = 1. Domínio público; descrito em Abramowitz &
+Stegun, *Handbook of Mathematical Functions*, §9.12, e em Press et al.,
+*Numerical Recipes*, cap. 6.
+
+## Tabela de referência de Bessel  (native/tests/t00_bessel_table.c)
+
+Valores gerados com Wolfram Language (`BesselJ`, 30 dígitos, argumentos
+racionais exatos) e conferidos de forma independente contra `mpmath`. São dados
+de teste; não entram no programa publicado.
+
+--------------------------------------------------------------------------------
+
+Quando uma dependência de terceiros entrar no bundle, ela é listada aqui com
+licença e endereço, e a licença tem de ser MIT, BSD ou Apache — nada de licença
+viral que obrigue a abertura do fonte.
