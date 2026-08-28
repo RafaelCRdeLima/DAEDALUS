@@ -137,6 +137,9 @@ export class Daedalus {
 
   cursor() { return this.n_._dae_ws_cursor(this.s_); }
 
+  /** Volta ao estado inicial sem reconstruir o grafo. */
+  reiniciar() { return this.n_._dae_ws_reiniciar(this.s_) === 0; }
+
   /** JSON canônico do núcleo — o mesmo que entra no CSV e no .cpp exportado. */
   specCanonico() { return this.texto_(this.n_._dae_ws_spec_canonico(this.s_)); }
 

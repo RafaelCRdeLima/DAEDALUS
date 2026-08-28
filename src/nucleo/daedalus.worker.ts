@@ -7,6 +7,7 @@
  * não sobrevive a um postMessage nem ao crescimento do heap.
  */
 import { emitirCpp, emitirPython, emitirWolfram } from '../export/emissor.ts';
+import { passosDosQuadros } from './quadros.ts';
 import { Daedalus } from '../../wasm/build/daedalus.mjs';
 
 let dae: any = null;
@@ -39,16 +40,41 @@ self.onmessage = async (ev: MessageEvent) => {
       case 'propagar': {
         const d = await garante();
         cancelado = false;
+        /* Propagar de novo RECOMECA. Sem isto a segunda corrida encontrava o
+           cursor no fim, nao avancava nada, e emitia quadros do mesmo estado
+           final — a animacao "andava" sobre uma figura parada. */
+        d.reiniciar();
+        self.postMessage({ tipo: 'reiniciado', pop: d.populacao().slice() });
         const nt = d.rede().nt;
-        const bloco = Math.max(1, Math.min(25, Math.ceil(nt / 40)));
-        while (d.cursor() < nt && !cancelado) {
-          d.avancar(bloco);
-          self.postMessage({ tipo: 'quadro', cursor: d.cursor(), nt, pop: d.populacao().slice() });
-          await new Promise((r) => setTimeout(r, 0));
+        /* O passo de amostragem do MAPA vem de quem chama e a interface o
+           conhece. A versão anterior escolhia um bloco aqui dentro
+           (min(25, ceil(nt/40)) = 10 para nt=400) e emitia um quadro por bloco:
+           40 quadros para 400 pontos. A animação parava em 40/400 — não porque
+           tivesse travado, mas porque os quadros acabavam ali e o deslizador
+           contava passos. */
+        const passo = Math.max(1, Math.floor(msg.passoQuadro ?? 1));
+        const plano = passosDosQuadros(nt, passo);
+        let emitidos = 0;
+        let respiro = performance.now();
+        for (let k = 1; k < plano.length && !cancelado; ++k) {
+          d.avancar(plano[k] - plano[k - 1]);
+          self.postMessage({ tipo: 'quadro', passo: d.cursor(), nt,
+                             quadro: k, quadros: plano.length,
+                             pop: d.populacao().slice() });
+          ++emitidos;
+          /* Respira por TEMPO, não por quadro: com passo 1 e nt grande, um
+             setTimeout por quadro faria a propagação levar segundos só de
+             ida-e-volta ao laço de eventos. */
+          if (performance.now() - respiro > 16) {
+            await new Promise((r) => setTimeout(r, 0));
+            respiro = performance.now();
+          }
         }
         self.postMessage({
           tipo: cancelado ? 'cancelado' : 'pronto',
           series: d.series().slice(), seriesModulo: d.seriesModulo().slice(),
+          /* diagnóstico: quantos quadros o worker entregou, e até onde chegou */
+          emitidos, previstos: plano.length - 1, cursorFinal: d.cursor(), nt,
         });
         break;
       }

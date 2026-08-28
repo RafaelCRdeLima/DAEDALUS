@@ -217,6 +217,39 @@ DAE_EXPORT const char *dae_ws_csv(dae_sessao *s, int32_t incluir_estado)
   return s->texto;
 }
 
+/* Volta ao estado inicial SEM reconstruir o grafo.
+ *
+ * Existe porque "propagar" de novo tem de recomecar, e nao continuar de onde
+ * parou. Sem isto, a segunda propagacao encontrava o cursor no fim, nao
+ * avancava nada, e ainda assim emitia quadros — todos do mesmo estado final.
+ * Reconstruir o grafo resolveria tambem, mas pagaria Lanczos e metricas de
+ * novo por nada. */
+DAE_EXPORT int32_t dae_ws_reiniciar(dae_sessao *s)
+{
+  int32_t i;
+  if (!s || !s->tem_prop) return DAE_ERR_PARAM;
+  for (i = 0; i < s->G.n; ++i) { s->psire[i] = 0.0; s->psiim[i] = 0.0; }
+  if (s->S.init_site >= 0) {
+    s->psire[s->S.init_site] = 1.0;
+  } else {
+    double nrm = 0.0;
+    for (i = 0; i < s->G.n; ++i) {
+      s->psire[i] = s->S.init_re[i]; s->psiim[i] = s->S.init_im[i];
+      nrm += s->psire[i] * s->psire[i] + s->psiim[i] * s->psiim[i];
+    }
+    nrm = sqrt(nrm);
+    if (!(nrm > 0.0)) return DAE_ERR_PARAM;
+    for (i = 0; i < s->G.n; ++i) { s->psire[i] /= nrm; s->psiim[i] /= nrm; }
+  }
+  for (i = 0; i < s->S.nt * DAE_S_NCOL; ++i) s->R.scal[i] = NAN;
+  for (i = 0; i < s->S.nt * s->G.nmod; ++i) s->R.pmod[i] = 0.0;
+  s->cursor = 0;
+  s->R.info.k_used = 0;
+  dae_obs_eval(s->psire, s->psiim, s->G.n, &s->cfg, &s->O);
+  for (i = 0; i < s->G.n; ++i) s->popf[i] = (float)s->O.pop[i];
+  return DAE_OK;
+}
+
 /* Avanca ate `quantos` passos e devolve quantos de fato avancou. O cancelamento
  * mora do lado JS: quem chama decide se pede o proximo bloco. */
 DAE_EXPORT int32_t dae_ws_avanca(dae_sessao *s, int32_t quantos)

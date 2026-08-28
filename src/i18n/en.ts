@@ -38,6 +38,9 @@ export const en: Catalog = {
   c_realizacoes: () => 'realisations',
   c_passos: () => 'steps in p',
 
+  c_passo_quadro: () => 'map stride',
+  q_quadros: (p) => `${p['k']} frames · ${p['mb']} MB`,
+  q_incompleto: (p) => `animation stopped at ${p['tem']} of ${p['esperado']} frames`,
   ham_adjacency: () => 'Adjacency',
   ham_laplacian: () => 'Laplacian',
   norm_spectral: () => 'spectral radius',

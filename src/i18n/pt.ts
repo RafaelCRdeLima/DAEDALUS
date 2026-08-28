@@ -39,6 +39,9 @@ export const pt: Catalog = {
   c_realizacoes: () => 'realizações',
   c_passos: () => 'passos em p',
 
+  c_passo_quadro: () => 'passo do mapa',
+  q_quadros: (p) => `${p['k']} quadros · ${p['mb']} MB`,
+  q_incompleto: (p) => `animação parou em ${p['tem']} de ${p['esperado']} quadros`,
   ham_adjacency: () => 'Adjacência',
   ham_laplacian: () => 'Laplaciano',
   norm_spectral: () => 'raio espectral',

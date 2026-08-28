@@ -228,3 +228,6 @@ button.primario { border-color: #2C77A8; color: var(--dd-mode-lab-fg); }
   font-family: var(--dd-font-mono); font-size: 11px;
 }
 .botao-arquivo:hover { background: rgba(181, 129, 60, .22); }
+
+.transporte .num { white-space: nowrap; }
+.num.fraco { color: var(--dd-wax); font-size: 11px; }

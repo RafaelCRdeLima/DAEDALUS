@@ -4,6 +4,7 @@ import { Heatmap } from '../gl/heatmap';
 import { MAX_ARESTAS_DESENHADAS, Nuvem } from '../gl/nuvem';
 import { empacotarLattice, sitioNoTexel } from '../nucleo/indices';
 import { gradienteCss } from '../nucleo/paleta';
+import { bytesDosQuadros, passoParaCaber, passosDosQuadros, quadroDoPasso } from '../nucleo/quadros.ts';
 import { reimportar, type Reimportado } from '../nucleo/reimportar.ts';
 import { SeletorLingua } from './SeletorLingua';
 import { Metricas } from './Metricas';
@@ -39,7 +40,9 @@ export default function App() {
   const canvasNuvem = useRef<HTMLCanvasElement>(null);
   const arestasRef = useRef<Array<[number, number, number]> | null>(null);
   const workerRef = useRef<Worker | null>(null);
-  const quadrosRef = useRef<Float32Array[]>([]);
+  /* Cada quadro carrega o PASSO em que foi tirado: sem isso o deslizador conta
+     quadros e o rótulo mente sobre o tempo. */
+  const quadrosRef = useRef<Array<{ pop: Float32Array; passo: number }>>([]);
   const desenharRef = useRef<(p: Float32Array) => void>(() => {});
   const redeRef = useRef<Rede | null>(null);
   const primeira = useRef(true);
@@ -80,7 +83,9 @@ export default function App() {
   const [total, setTotal] = useState(0);
   const [rodando, setRodando] = useState(false);
   const [tocando, setTocando] = useState(false);
-  const [temScrub, setTemScrub] = useState(true);
+  const [nQuadros, setNQuadros] = useState(1);
+  const [passoQuadro, setPassoQuadro] = useState(1);
+  const [diagQuadros, setDiagQuadros] = useState<{ tem: number; esperado: number } | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [fase, setFase] = useState('f_iniciando');
   const [autoPropagar, setAutoPropagar] = useState(false);
@@ -117,6 +122,19 @@ export default function App() {
     };
   }, [gerador, nPar, nPerp, seam, fechado, jPerp, modulos, wsP, religar, semente,
       pIn, pOut, nGen, ham, gamma, norm, t1, nt, sitio, alvo]);
+
+  /* O passo pedido, elevado ao mínimo que cabe no teto de memória. O custo
+     aparece ao lado do controle: guardar um quadro por passo em rede grande
+     estoura, e é melhor o usuário ver o número do que descobrir travando. */
+  const passoEfetivo = useMemo(() => {
+    if (!rede) return Math.max(1, passoQuadro);
+    return Math.max(passoQuadro, passoParaCaber(nt, rede.n, TETO_QUADROS));
+  }, [passoQuadro, rede, nt]);
+  const custoQuadros = useMemo(() => {
+    if (!rede) return { k: 0, mb: '0' };
+    const k = passosDosQuadros(nt, passoEfetivo).length;
+    return { k, mb: (bytesDosQuadros(nt, passoEfetivo, rede.n) / 1e6).toFixed(1) };
+  }, [rede, nt, passoEfetivo]);
 
   const forma = useMemo(() => ({
     largura: rede?.nPar || 1, altura: rede?.nPerp || 1,
@@ -159,8 +177,8 @@ export default function App() {
           redeRef.current = m.rede;
           setRede(m.rede); setVersao(`${m.versao} · ${m.hashNucleo}`);
           setSeries(null); setCursor(0); setTotal(m.rede.nt);
-          quadrosRef.current = [m.pop];
-          setTemScrub(m.rede.nt * m.rede.n <= TETO_QUADROS);
+          quadrosRef.current = [{ pop: m.pop, passo: 0 }];
+          setNQuadros(1); setDiagQuadros(null);
           arestasRef.current = m.arestas ?? null;
           setXyProprio(m.xy);
           setXyEspectral(null);
@@ -170,15 +188,29 @@ export default function App() {
                  : m.rede.geom === 1 ? 'propria' : 'espectral');
           setErro(null); setFase('f_pronta');
           if (primeira.current) { primeira.current = false; setAutoPropagar(true); }
+        } else if (m.tipo === 'reiniciado') {
+          /* Os quadros da corrida anterior nao se somam a esta. */
+          quadrosRef.current = [{ pop: m.pop, passo: 0 }];
+          setNQuadros(1); setCursor(0); setDiagQuadros(null);
         } else if (m.tipo === 'quadro') {
-          if (m.nt * (redeRef.current?.n ?? 1) <= TETO_QUADROS) quadrosRef.current.push(m.pop);
-          else quadrosRef.current = [m.pop];
-          setCursor(m.cursor); desenharRef.current(m.pop);
+          /* Cada quadro guarda o PASSO em que foi tirado: e ele que rotula o
+             tempo e posiciona o cursor das series. O deslizador conta QUADROS. */
+          quadrosRef.current.push({ pop: m.pop, passo: m.passo });
+          setNQuadros(quadrosRef.current.length);
+          setCursor(quadrosRef.current.length - 1);
+          desenharRef.current(m.pop);
         } else if (m.tipo === 'pronto' || m.tipo === 'cancelado') {
           setSeries(m.series); setRodando(false);
           setFase(m.tipo === 'pronto' ? 'f_pronto' : 'f_cancelado');
           const ultimo = quadrosRef.current[quadrosRef.current.length - 1];
-          if (ultimo) desenharRef.current(ultimo);
+          if (ultimo) desenharRef.current(ultimo.pop);
+          /* Instrumentacao: quantos quadros o worker disse que emitiria, quantos
+             a interface tem. Se divergirem, a animacao para antes do fim e o
+             usuario precisa saber POR QUE, nao so ver o deslizador travado. */
+          if (m.tipo === 'pronto') {
+            const tem = quadrosRef.current.length - 1;
+            setDiagQuadros(tem === m.previstos ? null : { tem, esperado: m.previstos });
+          }
         } else if (m.tipo === 'exportado') {
           baixar(m.alvo === 'cpp' ? 'daedalus_run.cpp'
                : m.alvo === 'wl' ? 'daedalus_oraculo.wl' : 'daedalus_oraculo.py', m.texto);
@@ -232,7 +264,7 @@ export default function App() {
     if (alvos.length === 0 || typeof ResizeObserver === 'undefined') return;
     const ro = new ResizeObserver(() => {
       const q = quadrosRef.current[Math.min(cursor, quadrosRef.current.length - 1)];
-      if (q) desenharRef.current(q);
+      if (q) desenharRef.current(q.pop);
     });
     for (const a of alvos) ro.observe(a);
     return () => ro.disconnect();
@@ -249,7 +281,7 @@ export default function App() {
     if (vista === 'desenrolada' || !nuvemRef.current || !xyVista || !rede) return;
     nuvemRef.current.rede(xyVista, rede.n, arestasRef.current);
     const q = quadrosRef.current[Math.min(cursor, quadrosRef.current.length - 1)];
-    if (q) desenharRef.current(q);
+    if (q) desenharRef.current(q.pop);
     /* eslint-disable-next-line */
   }, [vista, xyVista, rede]);
 
@@ -259,7 +291,7 @@ export default function App() {
   };
   const propagar = () => {
     setErro(null); setRodando(true); setSeries(null); setCursor(0); setFase('f_propagando');
-    worker().postMessage({ tipo: 'propagar' });
+    worker().postMessage({ tipo: 'propagar', passoQuadro: passoEfetivo });
   };
   const varrer = () => {
     setPontos([]); setVarrendo({ i: 0, n: vPassos });
@@ -279,19 +311,24 @@ export default function App() {
       setCursor((c) => {
         const prox = c + 1 > quadrosRef.current.length - 1 ? 0 : c + 1;
         const q = quadrosRef.current[prox];
-        if (q) desenharRef.current(q);
+        if (q) desenharRef.current(q.pop);
         return prox;
       });
     }, 40);
     return () => clearInterval(id);
   }, [tocando]);
 
-  const irPara = (passo: number) => {
+  /** Índice de QUADRO, não de passo. */
+  const irParaQuadro = (i: number) => {
     setTocando(false);
-    const i = Math.max(0, Math.min(quadrosRef.current.length - 1, passo));
-    setCursor(i);
-    const q = quadrosRef.current[i];
-    if (q) desenharRef.current(q);
+    const k = Math.max(0, Math.min(quadrosRef.current.length - 1, i));
+    setCursor(k);
+    const q = quadrosRef.current[k];
+    if (q) desenharRef.current(q.pop);
+  };
+  /** Recebe um PASSO (vindo do clique nas séries) e vai ao quadro mais próximo. */
+  const irParaPasso = (passo: number) => {
+    irParaQuadro(quadroDoPasso(quadrosRef.current.map((q) => q.passo), passo));
   };
 
   const marcar = (j: number) => {
@@ -325,7 +362,10 @@ export default function App() {
     worker().postMessage({ tipo: 'validar', spec });
   };
 
-  const passo = Math.max(0, Math.min(total - 1, cursor - 1));
+  /* O passo do quadro atual: e ele que posiciona o cursor nas series e que
+     rotula o tempo. `cursor` conta QUADROS. */
+  const passoAtual = quadrosRef.current[cursor]?.passo ?? 0;
+  const passo = Math.max(0, Math.min(total - 1, passoAtual - 1));
   const norma = series && total > 0 ? series[passo * 4 + 0] : NaN;
   const desvio = Number.isFinite(norma) ? Math.abs(norma - 1) : NaN;
   const normaOk = !Number.isFinite(desvio) || desvio < 1e-9;
@@ -461,16 +501,18 @@ export default function App() {
           <div className="transporte">
             <button onClick={() => setTocando((v) => !v)}
                     disabled={quadrosRef.current.length < 2}>{tocando ? '❚❚' : '▶'}</button>
-            <input type="range" min={0} max={Math.max(1, total)} value={cursor}
-                   onChange={(e) => irPara(+e.target.value)} disabled={!temScrub} />
-            <span className="num">{cursor} / {total}</span>
-            {!temScrub && <span className="aviso">{t('av_scrub_grande')}</span>}
+            <input type="range" min={0} max={Math.max(1, nQuadros - 1)} value={cursor}
+                   onChange={(e) => irParaQuadro(+e.target.value)} />
+            {/* Rotulo em TEMPO, nao em indice de quadro. */}
+            <span className="num">γt = {(gamma * passoAtual * (rede?.dt ?? 0)).toFixed(2)}</span>
+            <span className="num fraco">{cursor + 1}/{nQuadros}</span>
+            {diagQuadros && <span className="aviso">{t('q_incompleto', diagQuadros)}</span>}
             <label className="caixa"><input type="checkbox" checked={escalaFixa}
                    onChange={(e) => setEscalaFixa(e.target.checked)} /> {t('a_escala_fixa')}</label>
           </div>
           {listaSeries.length > 0 && (
             <Series series={listaSeries} tempo={tempo} cursor={cursor} rotuloX="γt"
-                    aoClicar={importado?.utilizavel ? undefined : irPara} />
+                    aoClicar={importado?.utilizavel ? undefined : irParaPasso} />
           )}
           {pontos.length > 0 && (
             <Varredura pontos={pontos} rotuloX={t('v_eixo')} rotuloY={t('v_media')} />
@@ -553,6 +595,11 @@ export default function App() {
             {faixa(t('c_pontos'), String(nt),
               <input type="range" min={20} max={2000} step={20} value={nt}
                      onChange={(e) => setNt(+e.target.value)} />)}
+            {faixa(t('c_passo_quadro'), t('q_quadros', custoQuadros),
+              <input type="range" min={1} max={50} value={passoQuadro}
+                     onChange={(e) => setPassoQuadro(+e.target.value)} />)}
+            {passoEfetivo > passoQuadro &&
+              <p className="dica">{t('q_quadros', custoQuadros)}</p>}
             <div className="transporte">
               <button className="primario" style={{ flex: 1 }} onClick={propagar}
                       disabled={rodando || !rede}>{rodando ? t('a_propagando') : t('a_propagar')}</button>
