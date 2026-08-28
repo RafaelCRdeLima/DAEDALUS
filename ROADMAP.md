@@ -248,11 +248,16 @@ que azul e bronze não são decoração.
 
 ### Publicação
 
-O compilado está em **https://daedalus.rafael-nuclear.workers.dev**, como bundle
-estático em Cloudflare Workers (`wrangler.jsonc`, `npm run publicar`). **Sem
-`main`**: não há Worker de código, não há backend, não há API. Isso não é
-economia — um endpoint ali seria um caminho por onde dado de pesquisa poderia
-sair da máquina do usuário sem ninguém ter pedido.
+O compilado está em **https://daedalus-lab.pages.dev**, como bundle estático em
+Cloudflare Pages (`wrangler.jsonc`, `npm run publicar`). **Sem `main`**: não há
+Worker de código, não há backend, não há API. Isso não é economia — um endpoint
+ali seria um caminho por onde dado de pesquisa poderia sair da máquina do
+usuário sem ninguém ter pedido.
+
+**Pages e não Workers por causa do endereço.** Uma URL workers.dev é sempre
+`<worker>.<subdomínio-da-conta>.workers.dev`, e o subdomínio da conta carrega o
+nome de quem a criou — não há como suprimi-lo sem trocar o subdomínio de toda a
+conta. Em Pages o endereço é só o nome do projeto.
 
 Conferido no que está publicado, não no que está previsto:
 
@@ -265,9 +270,13 @@ Conferido no que está publicado, não no que está previsto:
   é o compilado. O núcleo em C aparece no bundle porque o exportador precisa
   dele para emitir o `.cpp` autocontido — é o mesmo texto do arquivo exportado,
   por projeto;
-- `/tutorial/` responde, e caminho inexistente devolve 404 em vez do aplicativo.
-  Com `single-page-application` um endereço digitado errado pareceria ter
-  funcionado.
+- `/tutorial/` responde, e caminho inexistente devolve **404**.
+
+Esse último ponto custou uma página. Em Pages, sem um `404.html`, qualquer
+caminho recebe o `index.html` com status **200**: `/tutoriall` e `/tutorial`
+passariam os dois, e o errado abriria o laboratório em vez de avisar — um
+endereço digitado errado pareceria ter dado certo. `public/404.html` existe para
+que ele falhe, e não faz requisição nenhuma para fora, como o resto do pacote.
 
 ### O que fica para depois
 
