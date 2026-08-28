@@ -361,6 +361,27 @@ luminosidade (senão "mais claro = mais população" vira convenção, não verd
 e `indices.test.ts` exige que um delta caia num texel específico — com
 `N∥ ≠ N⊥`, uma transposição muda esse índice na hora.
 
+### 10.1.5 Toda invariância precisa de uma companheira
+
+Regra geral, e não um caso particular das fixtures: **toda asserção de que algo
+se conserva precisa de uma companheira que prove que aquilo pode ser
+quebrado.** A pergunta a fazer de cada teste novo é *existe um estado
+degenerado em que isto passa sem testar nada?* — e quase sempre existe:
+
+| asserção | passa trivialmente quando |
+|---|---|
+| o padrão é simétrico | o estado não evoluiu (um delta é simétrico) |
+| a norma se conserva | nada evoluiu |
+| `p_alvo` bate nos dois lados | é zero dos dois lados |
+| os dois CSV são idênticos | os dois estão vazios ou truncados |
+| a varredura cobre o parâmetro | todos os pontos caíram no mesmo valor |
+| o leitor aceitou o arquivo | o leitor aceita qualquer coisa |
+
+As companheiras estão no código: `seam_shift = 3` tem de QUEBRAR a simetria
+transversal; o comparador de CSV exige norma em 1 **e** pacote espalhado; a
+varredura de α falha se a faixa coberta não passar de duas ordens de grandeza;
+cada teste de aceitação do reimportador tem um gêmeo de recusa.
+
 ### 10.2 Fixtures com resposta conhecida, e anti-vacuidade junto
 
 Com `seam_shift = 0` a rede é o produto cartesiano `P_41 × C_13`: a dinâmica
@@ -423,6 +444,42 @@ Tessera). Prefixo `dae_` em tudo que é público.
 
 Comentário explica **por que**, não o que. As regras deste documento aparecem
 citadas no ponto do código em que valem.
+
+## 11.2 Reimportação: a única entrada que não nasce aqui
+
+O CSV que volta do cluster é a única entrada do sistema que não passa pelo
+parser estrito por construção — e por isso é a que mais precisa desconfiar. Um
+arquivo de uma versão anterior do núcleo, ou com as colunas em outra ordem,
+plotaria e plotaria **errado**, sem nada quebrar.
+
+Três defesas, em `src/nucleo/reimportar.ts`:
+
+1. **Procedência obrigatória.** Sem `#! spec` e `#! core_hash` o arquivo é
+   recusado. Não dá para saber que simulação ele descreve, e um gráfico sem
+   essa resposta é pior que nenhum gráfico.
+2. **O spec passa pelo parser estrito em C**, via WASM (`dae_ws_valida`), o
+   mesmo do resto do sistema. Se não passa, o CSV não entra — e a mensagem que
+   aparece na tela é a do parser, com linha e coluna.
+3. **Colunas por nome, nunca por posição.** Ordem diferente tem de funcionar;
+   coluna ausente tem de aparecer como ausente, não como outra coluna.
+
+`core_hash` diferente é **aviso, não bloqueio**: reler resultado antigo é
+legítimo. Mas o aviso vai para a **tela**, não para o console, e o seletor de
+modo vira bronze — o número deixou de ser calculado aqui.
+
+## 11.3 Internacionalização
+
+Quatro línguas, mesmo modelo do Tessera: cada entrada do catálogo é uma
+**função**, não um texto com marcadores, para que cada língua resolva a própria
+gramática sem biblioteca de pluralização no meio. Chave ausente devolve a
+própria chave — o buraco aparece na tela em vez de virar string vazia.
+
+`src/i18n/catalog.test.ts` assere que as quatro línguas têm **exatamente** o
+mesmo conjunto de chaves, que toda chave usada na interface existe no catálogo,
+e que nenhuma tradução devolve string vazia. São dez linhas e pegam o modo de
+falha inteiro na CI. O teste que varre o código em busca de `t('chave')` tem
+sua própria anti-vacuidade: falha se encontrar menos de dez chaves, porque um
+varredor quebrado acharia zero e passaria.
 
 ## 11.5 Identidade visual
 

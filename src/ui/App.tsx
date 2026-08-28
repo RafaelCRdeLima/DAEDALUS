@@ -1,17 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useT } from '../i18n/react.ts';
 import { Heatmap } from '../gl/heatmap';
 import { empacotarLattice, empacotarTira, formaDaTira, sitioNoTexel } from '../nucleo/indices';
 import { gradienteCss } from '../nucleo/paleta';
+import { reimportar, type Reimportado } from '../nucleo/reimportar.ts';
+import { SeletorLingua } from './SeletorLingua';
 import { Series } from './Series';
+import { Varredura, type Ponto } from './Varredura';
 
-const GERADORES: Array<[string, string]> = [
-  ['microtubule', 'microtúbulo'], ['sbm', 'blocos estocásticos'],
-  ['path', 'linha'], ['cycle', 'ciclo'], ['grid2d', 'grade 2D'],
-  ['hypercube', 'hipercubo'], ['complete', 'completo'],
-];
-
-/* Teto de quadros guardados para o scrub. Acima disso a animação segue ao vivo,
-   sem voltar no tempo — e a interface diz isso em vez de comer memória calada. */
+const GERADORES = ['microtubule', 'sbm', 'path', 'cycle', 'grid2d', 'hypercube', 'complete'];
 const TETO_QUADROS = 6_000_000;
 
 interface Rede {
@@ -26,12 +23,12 @@ interface Rede {
 function baixar(nome: string, texto: string) {
   const url = URL.createObjectURL(new Blob([texto], { type: 'text/plain' }));
   const a = document.createElement('a');
-  a.href = url; a.download = nome;
-  a.click();
+  a.href = url; a.download = nome; a.click();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
 export default function App() {
+  const t = useT();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const heatRef = useRef<Heatmap | null>(null);
   const workerRef = useRef<Worker | null>(null);
@@ -39,6 +36,7 @@ export default function App() {
   const desenharRef = useRef<(p: Float32Array) => void>(() => {});
   const redeRef = useRef<Rede | null>(null);
   const primeira = useRef(true);
+  const pendenteCsv = useRef<{ nome: string; texto: string } | null>(null);
 
   const [gerador, setGerador] = useState('microtubule');
   const [nPar, setNPar] = useState(160);
@@ -46,7 +44,6 @@ export default function App() {
   const [seam, setSeam] = useState(3);
   const [fechado, setFechado] = useState(false);
   const [modulos, setModulos] = useState(8);
-  const [jPar] = useState(1);
   const [jPerp, setJPerp] = useState(1);
   const [wsP, setWsP] = useState(0);
   const [religar, setReligar] = useState(true);
@@ -64,6 +61,11 @@ export default function App() {
   const [alvo, setAlvo] = useState(-1);
   const [modoClique, setModoClique] = useState<'inicial' | 'alvo'>('inicial');
 
+  const [vPassos, setVPassos] = useState(9);
+  const [vReal, setVReal] = useState(4);
+  const [pontos, setPontos] = useState<Ponto[]>([]);
+  const [varrendo, setVarrendo] = useState<{ i: number; n: number } | null>(null);
+
   const [rede, setRede] = useState<Rede | null>(null);
   const [versao, setVersao] = useState('');
   const [series, setSeries] = useState<Float64Array | null>(null);
@@ -73,26 +75,24 @@ export default function App() {
   const [tocando, setTocando] = useState(false);
   const [temScrub, setTemScrub] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
-  const [fase, setFase] = useState('iniciando');
+  const [fase, setFase] = useState('f_iniciando');
   const [autoPropagar, setAutoPropagar] = useState(false);
   const [escalaFixa, setEscalaFixa] = useState(false);
+  const [importado, setImportado] = useState<Reimportado | null>(null);
+  const [maxQuadro, setMaxQuadro] = useState(0);
 
   /* O spec.json É a interface: a mesma moeda que o WASM lê, que o CSV carrega e
      que o .cpp exportado embute. Não existe caminho paralelo de parâmetros. */
   const spec = useMemo(() => {
+    const conn = { ws_p: wsP, conn_mode: religar ? 'rewire' : 'add' };
     const params: Record<string, unknown> =
       gerador === 'microtubule'
         ? { n_par: nPar, n_perp: nPerp, seam_shift: seam, longitudinal_closed: fechado,
-            j_par: jPar, j_perp: jPerp, n_modules: modulos,
-            ws_p: wsP, conn_mode: religar ? 'rewire' : 'add' }
-        : gerador === 'sbm'
-        ? { n: nGen, n_modules: modulos, p_in: pIn, p_out: pOut,
-            ws_p: wsP, conn_mode: religar ? 'rewire' : 'add' }
-        : gerador === 'grid2d'
-        ? { rows: 20, cols: 20, ws_p: wsP, conn_mode: religar ? 'rewire' : 'add' }
-        : gerador === 'hypercube'
-        ? { dim: 9, ws_p: wsP, conn_mode: religar ? 'rewire' : 'add' }
-        : { n: nGen, ws_p: wsP, conn_mode: religar ? 'rewire' : 'add' };
+            j_par: 1, j_perp: jPerp, n_modules: modulos, ...conn }
+        : gerador === 'sbm' ? { n: nGen, n_modules: modulos, p_in: pIn, p_out: pOut, ...conn }
+        : gerador === 'grid2d' ? { rows: 20, cols: 20, ...conn }
+        : gerador === 'hypercube' ? { dim: 9, ...conn }
+        : { n: nGen, ...conn };
     return {
       format_version: 1, seed: semente,
       graph: { generator: gerador, params },
@@ -102,23 +102,21 @@ export default function App() {
       observables: { target: alvo, population: false, module_concurrence: true, pop_stride: 1 },
       realizations: 1,
     };
-  }, [gerador, nPar, nPerp, seam, fechado, jPar, jPerp, modulos, wsP, religar,
-      semente, pIn, pOut, nGen, ham, gamma, norm, t1, nt, sitio, alvo]);
+  }, [gerador, nPar, nPerp, seam, fechado, jPerp, modulos, wsP, religar, semente,
+      pIn, pOut, nGen, ham, gamma, norm, t1, nt, sitio, alvo]);
 
   const forma = useMemo(() => {
     if (!rede) return { largura: 1, altura: 1, ehLattice: false };
     if (rede.nPerp > 0) return { largura: rede.nPar, altura: rede.nPerp, ehLattice: true };
-    const t = formaDaTira(rede.n);
-    return { largura: t.largura, altura: t.altura, ehLattice: false };
+    const s = formaDaTira(rede.n);
+    return { largura: s.largura, altura: s.altura, ehLattice: false };
   }, [rede]);
 
-  const [maxQuadro, setMaxQuadro] = useState(0);
   const desenhar = useCallback((pop: Float32Array) => {
     const h = heatRef.current;
     if (!h || !rede) return;
-    const tex = forma.ehLattice
-      ? empacotarLattice(pop, forma.largura, forma.altura)
-      : empacotarTira(pop, forma.largura, forma.altura);
+    const tex = forma.ehLattice ? empacotarLattice(pop, forma.largura, forma.altura)
+                                : empacotarTira(pop, forma.largura, forma.altura);
     let max = 0;
     for (let i = 0; i < tex.length; ++i) if (tex[i] > max) max = tex[i];
     const usado = escalaFixa ? Math.min(1, 8 / rede.n) : max;
@@ -141,27 +139,26 @@ export default function App() {
       /* Erro na CARGA do módulo acontece antes de qualquer onmessage e não vira
          mensagem: sem isto o worker morre e a interface espera para sempre. */
       w.onerror = (ev: ErrorEvent) => {
-        setErro(`worker falhou ao carregar: ${ev.message || 'erro desconhecido'}`);
-        setRodando(false);
+        setErro(`worker: ${ev.message || '?'}`); setRodando(false); setVarrendo(null);
       };
       w.onmessage = (ev) => {
         const m = ev.data;
-        if (m.tipo === 'erro') { setErro(m.mensagem); setRodando(false); setFase('erro'); return; }
+        if (m.tipo === 'erro') { setErro(m.mensagem); setRodando(false); setVarrendo(null); setFase('f_erro'); return; }
         if (m.tipo === 'rede') {
           redeRef.current = m.rede;
-          setRede(m.rede); setVersao(`${m.versao} · núcleo ${m.hashNucleo}`);
+          setRede(m.rede); setVersao(`${m.versao} · ${m.hashNucleo}`);
           setSeries(null); setCursor(0); setTotal(m.rede.nt);
           quadrosRef.current = [m.pop];
           setTemScrub(m.rede.nt * m.rede.n <= TETO_QUADROS);
-          setErro(null); setFase('rede pronta');
+          setErro(null); setFase('f_pronta');
           if (primeira.current) { primeira.current = false; setAutoPropagar(true); }
         } else if (m.tipo === 'quadro') {
           if (m.nt * (redeRef.current?.n ?? 1) <= TETO_QUADROS) quadrosRef.current.push(m.pop);
           else quadrosRef.current = [m.pop];
-          setCursor(m.cursor);
-          desenharRef.current(m.pop);
+          setCursor(m.cursor); desenharRef.current(m.pop);
         } else if (m.tipo === 'pronto' || m.tipo === 'cancelado') {
-          setSeries(m.series); setRodando(false); setFase(m.tipo);
+          setSeries(m.series); setRodando(false);
+          setFase(m.tipo === 'pronto' ? 'f_pronto' : 'f_cancelado');
           const ultimo = quadrosRef.current[quadrosRef.current.length - 1];
           if (ultimo) desenharRef.current(ultimo);
         } else if (m.tipo === 'exportado') {
@@ -169,6 +166,17 @@ export default function App() {
                : m.alvo === 'wl' ? 'daedalus_oraculo.wl' : 'daedalus_oraculo.py', m.texto);
         } else if (m.tipo === 'csv') {
           baixar('daedalus.csv', m.texto);
+        } else if (m.tipo === 'varredura_passo') {
+          setPontos(m.pontos); setVarrendo({ i: m.i, n: m.total });
+        } else if (m.tipo === 'varredura_fim') {
+          setPontos(m.pontos); setVarrendo(null); setFase('f_pronto');
+        } else if (m.tipo === 'validado') {
+          /* O spec do CSV passou (ou não) pelo parser estrito em C. */
+          const pend = pendenteCsv.current;
+          pendenteCsv.current = null;
+          if (!pend) return;
+          const r = reimportar(pend.nome, pend.texto, m.hash, () => m.erro ?? null);
+          setImportado(r);
         }
       };
       workerRef.current = w;
@@ -177,12 +185,17 @@ export default function App() {
   }, []);
 
   const carregar = () => {
-    setErro(null); setFase('gerando rede');
+    setErro(null); setFase('f_gerando'); setImportado(null);
     worker().postMessage({ tipo: 'carregar', spec: JSON.stringify(spec) });
   };
   const propagar = () => {
-    setErro(null); setRodando(true); setSeries(null); setCursor(0); setFase('propagando');
+    setErro(null); setRodando(true); setSeries(null); setCursor(0); setFase('f_propagando');
     worker().postMessage({ tipo: 'propagar' });
+  };
+  const varrer = () => {
+    setPontos([]); setVarrendo({ i: 0, n: vPassos });
+    worker().postMessage({ tipo: 'varrer', spec: JSON.stringify(spec),
+                           pMin: 0, pMax: 1, passos: vPassos, realizacoes: vReal });
   };
 
   useEffect(() => { carregar(); /* eslint-disable-next-line */ }, []);
@@ -215,12 +228,29 @@ export default function App() {
   const clicarCanvas = (ev: React.MouseEvent<HTMLCanvasElement>) => {
     const h = heatRef.current;
     if (!h || !rede) return;
-    const t = h.texelDoEvento(ev);
-    if (!t) return;
-    const j = forma.ehLattice ? sitioNoTexel(t.m, t.q, forma.largura, forma.altura)
-                              : t.q * forma.largura + t.m;
+    const p = h.texelDoEvento(ev);
+    if (!p) return;
+    const j = forma.ehLattice ? sitioNoTexel(p.m, p.q, forma.largura, forma.altura)
+                              : p.q * forma.largura + p.m;
     if (j < 0 || j >= rede.n) return;
     if (modoClique === 'inicial') setSitio(j); else setAlvo(j);
+  };
+
+  /* A reimportação é a única entrada que não nasce aqui: o spec embutido no CSV
+     vai ao parser estrito em C antes de qualquer coisa ser plotada. */
+  const abrirCsv = async (arquivo: File | undefined) => {
+    if (!arquivo) return;
+    const texto = await arquivo.text();
+    const linhas = texto.split('\n');
+    const spec = linhas.find((l) => l.startsWith('#! spec '))?.slice(8) ?? '';
+    pendenteCsv.current = { nome: arquivo.name, texto };
+    if (!spec) {
+      const r = reimportar(arquivo.name, texto, '', () => null);
+      pendenteCsv.current = null;
+      setImportado(r);
+      return;
+    }
+    worker().postMessage({ tipo: 'validar', spec });
   };
 
   const passo = Math.max(0, Math.min(total - 1, cursor - 1));
@@ -229,6 +259,17 @@ export default function App() {
   const normaOk = !Number.isFinite(desvio) || desvio < 1e-9;
 
   const listaSeries = useMemo(() => {
+    /* Reimportado tem prioridade e vem em BRONZE: o número deixou de ser
+       calculado aqui, e a cor diz isso (identity/README.md). */
+    if (importado?.utilizavel) {
+      const col = (n: string) => importado.dados.get(n);
+      const s: Array<{ nome: string; cor: string; valores: Float64Array }> = [];
+      if (col('ipr')) s.push({ nome: t('se_ipr'), cor: '#B5813C', valores: col('ipr')! });
+      if (col('coh_l1')) s.push({ nome: t('se_coerencia'), cor: '#E5A83F', valores: col('coh_l1')! });
+      const pa = col('p_target');
+      if (pa && Number.isFinite(pa[0])) s.push({ nome: t('se_palvo'), cor: '#A8452C', valores: pa });
+      return s;
+    }
     if (!series || total === 0) return [];
     const col = (k: number) => {
       const v = new Float64Array(total);
@@ -236,19 +277,30 @@ export default function App() {
       return v;
     };
     const s = [
-      { nome: 'IPR', cor: '#E5A83F', valores: col(1) },
-      { nome: 'coerência ℓ₁', cor: '#3F7C74', valores: col(2) },
+      { nome: t('se_ipr'), cor: '#E5A83F', valores: col(1) },
+      { nome: t('se_coerencia'), cor: '#3F7C74', valores: col(2) },
     ];
     const pa = col(3);
-    if (Number.isFinite(pa[0])) s.push({ nome: 'p no alvo', cor: '#A8452C', valores: pa });
+    if (Number.isFinite(pa[0])) s.push({ nome: t('se_palvo'), cor: '#A8452C', valores: pa });
     return s;
-  }, [series, total]);
+  }, [series, total, importado, t]);
+
+  const ntSeries = importado?.utilizavel
+    ? (importado.dados.get('t')?.length ?? 0) : total;
 
   const exportar = (alvoExp: string) =>
     worker().postMessage({ tipo: 'exportar', alvo: alvoExp, spec: JSON.stringify(spec) });
 
+  const faixa = (rot: string, valor: string, campo: React.ReactNode) => (
+    <>
+      <div className="campo"><label>{rot}</label><span className="num">{valor}</span></div>
+      {campo}
+    </>
+  );
+
   return (
-    <div className="app">
+    <div className="app" onDragOver={(e) => e.preventDefault()}
+         onDrop={(e) => { e.preventDefault(); void abrirCsv(e.dataTransfer.files[0]); }}>
       <header className="topo">
         <svg width="22" height="22" viewBox="0 0 100 100" className="marca" aria-hidden="true">
           <path d="M19 19 V81 M19 19 H81 V81 H19 M19 34.5 H65.5 V65.5 H19 M19 50 H50"
@@ -256,17 +308,24 @@ export default function App() {
                 strokeLinecap="square" strokeLinejoin="miter" />
         </svg>
         <span className="nome">DAEDALUS</span>
-        {/* Azul Egeu: calculado aqui, agora. Ver identity/README.md. */}
-        <span className="selo">Laboratório · local</span>
+        {/* Azul Egeu: calculado aqui, agora. Bronze: veio de fora. */}
+        <span className={importado?.utilizavel ? 'selo exportado' : 'selo'}>
+          {importado?.utilizavel ? t('modo_reimportado') : t('modo_local')}
+        </span>
         <span className="espaco" />
         <span className="arquivo mono">
-          {gerador}{rede ? ` · ${rede.n} vértices` : ''}
+          {importado?.utilizavel ? importado.nome
+            : `${t(`ger_${gerador}`)}${rede ? ` · ${rede.n}` : ''}`}
         </span>
+        <SeletorLingua />
       </header>
 
       <div className="corpo">
         <main className="palco">
           {erro && <div className="erro">{erro}</div>}
+          {importado?.avisos.map((a, i) => (
+            <div key={i} className={a.grave ? 'erro' : 'aviso'}>{t(a.chave, a.params)}</div>
+          ))}
           <canvas ref={canvasRef} onClick={clicarCanvas} />
           <div className="escala">
             <span>0.00</span>
@@ -274,120 +333,125 @@ export default function App() {
             <span>{maxQuadro ? maxQuadro.toPrecision(3) : '—'}</span>
             <span>|ψⱼ|²</span>
           </div>
-          {!forma.ehLattice && rede && (
-            <p className="dica">Este grafo não tem rede desenrolada: o mapa mostra os sítios
-              em ordem de índice, dobrados em linhas. Não é o layout do grafo.</p>
-          )}
+          {!forma.ehLattice && rede && <p className="dica">{t('av_nao_lattice')}</p>}
           <div className="transporte">
-            <button onClick={() => setTocando((t) => !t)}
+            <button onClick={() => setTocando((v) => !v)}
                     disabled={quadrosRef.current.length < 2}>{tocando ? '❚❚' : '▶'}</button>
             <input type="range" min={0} max={Math.max(1, total)} value={cursor}
                    onChange={(e) => irPara(+e.target.value)} disabled={!temScrub} />
             <span className="num">{cursor} / {total}</span>
+            {!temScrub && <span className="aviso">{t('av_scrub_grande')}</span>}
             <label className="caixa"><input type="checkbox" checked={escalaFixa}
-                   onChange={(e) => setEscalaFixa(e.target.checked)} /> escala fixa</label>
+                   onChange={(e) => setEscalaFixa(e.target.checked)} /> {t('a_escala_fixa')}</label>
           </div>
           {listaSeries.length > 0 && (
-            <Series series={listaSeries} nt={total} cursor={cursor} aoClicar={irPara} />
+            <Series series={listaSeries} nt={ntSeries} cursor={cursor}
+                    aoClicar={importado?.utilizavel ? undefined : irPara} />
+          )}
+          {pontos.length > 0 && (
+            <Varredura pontos={pontos} rotuloX={t('v_eixo')} rotuloY={t('v_media')} />
           )}
         </main>
 
         <aside className="painel">
-          <h2>Gerador</h2>
+          <h2>{t('sec_gerador')}</h2>
           <select value={gerador} onChange={(e) => setGerador(e.target.value)}>
-            {GERADORES.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
+            {GERADORES.map((g) => <option key={g} value={g}>{t(`ger_${g}`)}</option>)}
           </select>
 
           {gerador === 'microtubule' && (<>
-            <div className="campo"><label>N∥</label><span className="num">{nPar}</span></div>
-            <input type="range" min={4} max={600} value={nPar} onChange={(e) => setNPar(+e.target.value)} />
-            <div className="campo"><label>N⊥</label><span className="num">{nPerp}</span></div>
-            <input type="range" min={3} max={26} value={nPerp} onChange={(e) => setNPerp(+e.target.value)} />
-            <div className="campo"><label>costura</label><span className="num">{seam}</span></div>
-            <input type="range" min={0} max={12} value={seam} onChange={(e) => setSeam(+e.target.value)} />
+            {faixa(t('c_npar'), String(nPar),
+              <input type="range" min={4} max={600} value={nPar} onChange={(e) => setNPar(+e.target.value)} />)}
+            {faixa(t('c_nperp'), String(nPerp),
+              <input type="range" min={3} max={26} value={nPerp} onChange={(e) => setNPerp(+e.target.value)} />)}
+            {faixa(t('c_costura'), String(seam),
+              <input type="range" min={0} max={12} value={seam} onChange={(e) => setSeam(+e.target.value)} />)}
             <label className="caixa"><input type="checkbox" checked={fechado}
-              onChange={(e) => setFechado(e.target.checked)} /> fechar as pontas</label>
-            <div className="campo"><label>j∥ / j⊥</label>
-              <span className="num">{jPar.toFixed(2)} / {jPerp.toFixed(2)}</span></div>
-            <input type="range" min={0.1} max={2} step={0.05} value={jPerp}
-                   onChange={(e) => setJPerp(+e.target.value)} />
+              onChange={(e) => setFechado(e.target.checked)} /> {t('c_fechar')}</label>
+            {faixa(t('c_acoplamento'), `1.00 / ${jPerp.toFixed(2)}`,
+              <input type="range" min={0.1} max={2} step={0.05} value={jPerp}
+                     onChange={(e) => setJPerp(+e.target.value)} />)}
           </>)}
           {gerador === 'sbm' && (<>
-            <div className="campo"><label>N</label><span className="num">{nGen}</span></div>
-            <input type="range" min={20} max={2000} step={10} value={nGen}
-                   onChange={(e) => setNGen(+e.target.value)} />
-            <div className="campo"><label>p_in / p_out</label>
-              <span className="num">{pIn.toFixed(2)} / {pOut.toFixed(3)}</span></div>
-            <input type="range" min={0} max={1} step={0.01} value={pIn} onChange={(e) => setPIn(+e.target.value)} />
-            <input type="range" min={0} max={0.2} step={0.002} value={pOut} onChange={(e) => setPOut(+e.target.value)} />
+            {faixa(t('c_n'), String(nGen),
+              <input type="range" min={20} max={2000} step={10} value={nGen}
+                     onChange={(e) => setNGen(+e.target.value)} />)}
+            {faixa(t('c_pinpout'), `${pIn.toFixed(2)} / ${pOut.toFixed(3)}`, <>
+              <input type="range" min={0} max={1} step={0.01} value={pIn} onChange={(e) => setPIn(+e.target.value)} />
+              <input type="range" min={0} max={0.2} step={0.002} value={pOut} onChange={(e) => setPOut(+e.target.value)} />
+            </>)}
           </>)}
-          {(gerador === 'path' || gerador === 'cycle' || gerador === 'complete') && (<>
-            <div className="campo"><label>N</label><span className="num">{nGen}</span></div>
-            <input type="range" min={4} max={2000} step={2} value={nGen}
-                   onChange={(e) => setNGen(+e.target.value)} />
-          </>)}
-          {(gerador === 'microtubule' || gerador === 'sbm') && (
-            <><div className="campo"><label>módulos</label><span className="num">{modulos}</span></div>
+          {(gerador === 'path' || gerador === 'cycle' || gerador === 'complete') &&
+            faixa(t('c_n'), String(nGen),
+              <input type="range" min={4} max={2000} step={2} value={nGen}
+                     onChange={(e) => setNGen(+e.target.value)} />)}
+          {(gerador === 'microtubule' || gerador === 'sbm') &&
+            faixa(t('c_modulos'), String(modulos),
               <input type="range" min={1} max={24} value={modulos}
-                     onChange={(e) => setModulos(+e.target.value)} /></>
-          )}
+                     onChange={(e) => setModulos(+e.target.value)} />)}
 
-          <div className="campo"><label>religação p</label><span className="num">{wsP.toFixed(2)}</span></div>
-          <input type="range" min={0} max={1} step={0.01} value={wsP} onChange={(e) => setWsP(+e.target.value)} />
+          {faixa(t('c_religacao'), wsP.toFixed(2),
+            <input type="range" min={0} max={1} step={0.01} value={wsP}
+                   onChange={(e) => setWsP(+e.target.value)} />)}
           <label className="caixa"><input type="checkbox" checked={religar}
-            onChange={(e) => setReligar(e.target.checked)} /> religar mantendo |E| fixo</label>
-          {!religar && <p className="aviso">Acrescentar arestas aumenta |E| e melhora o
-            transporte trivialmente: o resultado passa a medir o número de arestas, não a
-            topologia.</p>}
-
-          <div className="campo"><label>semente</label><span className="num">{semente}</span></div>
-          <input type="number" value={semente} onChange={(e) => setSemente(+e.target.value)} />
+            onChange={(e) => setReligar(e.target.checked)} /> {t('c_religar_fixo')}</label>
+          {!religar && <p className="aviso">{t('av_acrescentar')}</p>}
+          {faixa(t('c_semente'), String(semente),
+            <input type="number" value={semente} onChange={(e) => setSemente(+e.target.value)} />)}
           <button className="primario" style={{ width: '100%', marginTop: 10 }}
-                  onClick={carregar}>gerar rede</button>
+                  onClick={carregar}>{t('a_gerar')}</button>
 
-          <h2>Hamiltoniano</h2>
+          <h2>{t('sec_hamiltoniano')}</h2>
           <div className="segmentado">
             <button className={ham === 'adjacency' ? 'sel' : ''}
-                    onClick={() => setHam('adjacency')}>Adjacência</button>
+                    onClick={() => setHam('adjacency')}>{t('ham_adjacency')}</button>
             <button className={ham === 'laplacian' ? 'sel' : ''}
-                    onClick={() => setHam('laplacian')}>Laplaciano</button>
+                    onClick={() => setHam('laplacian')}>{t('ham_laplacian')}</button>
           </div>
-          <div className="campo"><label>γ</label><span className="num">{gamma.toFixed(2)}</span></div>
-          <input type="range" min={0.05} max={4} step={0.05} value={gamma}
-                 onChange={(e) => setGamma(+e.target.value)} />
-          <div className="campo"><label>normalização de ‖H‖</label></div>
+          {faixa(t('c_gamma'), gamma.toFixed(2),
+            <input type="range" min={0.05} max={4} step={0.05} value={gamma}
+                   onChange={(e) => setGamma(+e.target.value)} />)}
+          <div className="campo"><label>{t('c_normalizacao')}</label></div>
           <select value={norm} onChange={(e) => setNorm(e.target.value)}>
-            <option value="spectral">raio espectral</option>
-            <option value="mean_degree">grau médio</option>
-            <option value="none">nenhuma</option>
+            <option value="spectral">{t('norm_spectral')}</option>
+            <option value="mean_degree">{t('norm_mean_degree')}</option>
+            <option value="none">{t('norm_none')}</option>
           </select>
-          {norm === 'none' && <p className="aviso">Sem normalizar, "mais coerência" pode ser
-            apenas "hopping maior" ao comparar topologias diferentes.</p>}
-          <div className="campo"><label>t final</label><span className="num">{t1.toFixed(1)}</span></div>
-          <input type="range" min={1} max={400} step={1} value={t1} onChange={(e) => setT1(+e.target.value)} />
-          <div className="campo"><label>pontos no tempo</label><span className="num">{nt}</span></div>
-          <input type="range" min={20} max={2000} step={20} value={nt}
-                 onChange={(e) => setNt(+e.target.value)} />
+          {norm === 'none' && <p className="aviso">{t('av_sem_normalizar')}</p>}
+          {faixa(t('c_tfinal'), t1.toFixed(1),
+            <input type="range" min={1} max={400} step={1} value={t1} onChange={(e) => setT1(+e.target.value)} />)}
+          {faixa(t('c_pontos'), String(nt),
+            <input type="range" min={20} max={2000} step={20} value={nt}
+                   onChange={(e) => setNt(+e.target.value)} />)}
           <div className="transporte" style={{ marginTop: 10 }}>
             <button className="primario" style={{ flex: 1 }} onClick={propagar}
-                    disabled={rodando || !rede}>{rodando ? 'propagando…' : 'propagar'}</button>
+                    disabled={rodando || !rede}>{rodando ? t('a_propagando') : t('a_propagar')}</button>
             <button onClick={() => worker().postMessage({ tipo: 'cancelar' })}
-                    disabled={!rodando}>parar</button>
+                    disabled={!rodando && !varrendo}>{t('a_parar')}</button>
           </div>
 
-          <h2>Sítios</h2>
+          <h2>{t('sec_sitios')}</h2>
           <div className="segmentado">
             <button className={modoClique === 'inicial' ? 'sel' : ''}
-                    onClick={() => setModoClique('inicial')}>inicial {sitio}</button>
+                    onClick={() => setModoClique('inicial')}>{t('s_inicial', { j: sitio })}</button>
             <button className={modoClique === 'alvo' ? 'sel' : ''}
-                    onClick={() => setModoClique('alvo')}>alvo {alvo < 0 ? '—' : alvo}</button>
+                    onClick={() => setModoClique('alvo')}>{t('s_alvo', { j: alvo < 0 ? '—' : alvo })}</button>
           </div>
-          <p className="dica">Clique no mapa para marcar o sítio selecionado acima.
-            {alvo >= 0 && <> <a href="#" onClick={(e) => { e.preventDefault(); setAlvo(-1); }}
-              style={{ color: '#8FC2E4' }}>limpar alvo</a></>}</p>
+          <p className="dica">{t('s_dica')}{alvo >= 0 && <> <a href="#" style={{ color: '#8FC2E4' }}
+            onClick={(e) => { e.preventDefault(); setAlvo(-1); }}>{t('a_limpar_alvo')}</a></>}</p>
+
+          <h2>{t('sec_varredura')}</h2>
+          {faixa(t('c_passos'), String(vPassos),
+            <input type="range" min={2} max={21} value={vPassos} onChange={(e) => setVPassos(+e.target.value)} />)}
+          {faixa(t('c_realizacoes'), String(vReal),
+            <input type="range" min={1} max={16} value={vReal} onChange={(e) => setVReal(+e.target.value)} />)}
+          <button className="primario" style={{ width: '100%', marginTop: 8 }}
+                  onClick={varrer} disabled={!!varrendo || alvo < 0}>
+            {varrendo ? t('f_varrendo', { i: varrendo.i, n: varrendo.n }) : t('a_varrer')}</button>
+          <p className="dica">{t('v_dica')}</p>
 
           {/* Bronze: tudo que sai daqui e volta de fora. Distinção funcional. */}
-          <h2>Exportar</h2>
+          <h2>{t('sec_exportar')}</h2>
           <div className="exportar">
             <button onClick={() => exportar('cpp')} disabled={!rede}>C++</button>
             <button onClick={() => exportar('wl')} disabled={!rede}>Wolfram</button>
@@ -395,31 +459,39 @@ export default function App() {
           </div>
           <div className="exportar">
             <button onClick={() => worker().postMessage({ tipo: 'csv' })}
-                    disabled={!series}>CSV dos resultados</button>
+                    disabled={!series}>{t('a_csv')}</button>
           </div>
-          <p className="dica">O C++ é autocontido e regenera a rede a partir do spec.json.
-            Wolfram e Python recebem a lista de arestas e servem como oráculo do propagador.</p>
+          <p className="dica">{t('av_exportar')}</p>
+
+          <h2>{t('sec_reimportar')}</h2>
+          <div className="exportar">
+            <label className="botao-arquivo">
+              {t('a_abrir_csv')}
+              <input type="file" accept=".csv,text/csv,text/plain" style={{ display: 'none' }}
+                     onChange={(e) => void abrirCsv(e.target.files?.[0])} />
+            </label>
+          </div>
         </aside>
       </div>
 
       <footer className={normaOk ? 'rodape' : 'rodape ruim'}>
-        <span>Σ|ψ|² = <b>{Number.isFinite(norma) ? norma.toFixed(12) : '—'}</b>
+        <span>{t('r_norma')} = <b>{Number.isFinite(norma) ? norma.toFixed(12) : '—'}</b>
           {Number.isFinite(desvio) && ` (Δ ${desvio.toExponential(1)})`}</span>
         {rede && <>
-          <span><b>{rede.n}</b> vértices</span>
-          <span><b>{rede.arestas}</b> arestas</span>
-          <span>⟨d⟩ <b>{rede.grauMedio.toFixed(3)}</b></span>
+          <span>{t('r_vertices', { n: rede.n })}</span>
+          <span>{t('r_arestas', { m: rede.arestas })}</span>
+          <span>{t('r_grau')} <b>{rede.grauMedio.toFixed(3)}</b></span>
           <span>λ₂ <b>{rede.lambda2.toPrecision(5)}</b>
-            {!rede.lambda2Convergiu && <span className="alerta"> não convergiu · limite superior</span>}</span>
+            {!rede.lambda2Convergiu && <span className="alerta"> {t('r_lambda2_alto')}</span>}</span>
           <span>Q <b>{rede.Q.toFixed(4)}</b></span>
           <span>α <b>{rede.alpha.toFixed(3)}</b></span>
           <span>hash <b>{rede.fingerprint.toString(16).slice(0, 8)}</b></span>
-          {rede.componentes > 1 && <span className="alerta">{rede.componentes} componentes</span>}
-          {rede.arestasDescartadas > 0 && <span className="alerta">{rede.arestasDescartadas} duplicadas descartadas</span>}
-          {rede.religacoesFalhas > 0 && <span className="alerta">{rede.religacoesFalhas} religações sem destino</span>}
+          {rede.componentes > 1 && <span className="alerta">{t('r_componentes', { k: rede.componentes })}</span>}
+          {rede.arestasDescartadas > 0 && <span className="alerta">{t('r_duplicadas', { k: rede.arestasDescartadas })}</span>}
+          {rede.religacoesFalhas > 0 && <span className="alerta">{t('r_religacoes', { k: rede.religacoesFalhas })}</span>}
         </>}
         <span className="espaco" />
-        <span>{fase}</span>
+        <span>{t(fase)}</span>
         <span>{versao}</span>
       </footer>
     </div>

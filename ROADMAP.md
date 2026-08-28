@@ -162,10 +162,32 @@ buffer truncado é leitura fora de limite. O lixo continha um NUL, o `fwrite`
 com `strlen` cortava o CSV logo depois do cabeçalho, e o comparador via "sem
 tabela" em vez de "arquivo truncado".
 
-### 6. Varredura, reimportação, i18n, tutorial — ⬜ (próxima)
+### 6. Varredura, reimportação, i18n, tutorial — ✅ completa
 
-Modo de varredura com barras de erro, reimportação de CSV/HDF5 do cluster,
-português/inglês/francês/italiano, tutorial em `/tutorial/`.
+**Varredura** de `p` com realizações e barras de erro, rodando no worker um
+ponto por vez; a média é **temporal** (`p̄`), não o valor final, que oscila.
+Varredura longa continua sendo trabalho do `.cpp` com realizações.
+
+**Reimportação** com procedência obrigatória: o `spec.json` embutido no CSV
+passa pelo parser estrito em C antes de qualquer coisa ser plotada, e as
+colunas são lidas por nome. `core_hash` diferente é aviso visível na tela, não
+bloqueio — e o seletor de modo vira bronze. 10 testes, cada aceitação com o seu
+gêmeo de recusa.
+
+**i18n** em português, inglês, francês e italiano, no modelo do Tessera:
+catálogo de funções, chave ausente devolve a própria chave, e o teste de
+paridade assere que as quatro línguas têm exatamente as mesmas chaves.
+
+**Tutorial** em `/tutorial/`, cobrindo o que muda a leitura de um resultado: as
+duas disciplinas metodológicas, o que o rodapé está dizendo, a costura, e por
+que azul e bronze não são decoração.
+
+### O que fica para depois
+
+- reimportação de **HDF5** (hoje só CSV);
+- `pop_stride` exposto na interface, para redes onde guardar todos os quadros
+  não cabe;
+- defasagem tipo Haken–Strobl, abaixo.
 
 ## Fase 2 (arquitetura já preparada, não implementar ainda)
 

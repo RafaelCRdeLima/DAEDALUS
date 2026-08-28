@@ -165,6 +165,21 @@ DAE_EXPORT int32_t dae_ws_spec(dae_sessao *s, const char *json)
   return DAE_OK;
 }
 
+/* Valida um spec.json SEM tocar na sessao. Existe para a reimportacao: o CSV
+ * que volta do cluster carrega o spec canonico no cabecalho, e ele passa pelo
+ * MESMO parser estrito que tudo o mais. A reimportacao era a unica entrada do
+ * sistema que nao passava por aqui — e um CSV de uma versao anterior, ou com
+ * colunas em outra ordem, plotaria e plotaria errado. */
+DAE_EXPORT int32_t dae_ws_valida(dae_sessao *s, const char *json)
+{
+  dae_spec S;
+  dae_status st;
+  if (!s || !json) return DAE_ERR_PARAM;
+  st = dae_spec_parse(&S, json, &s->erro_json);
+  if (st == DAE_OK) dae_spec_free(&S);
+  return st;
+}
+
 DAE_EXPORT int32_t dae_ws_json_linha(const dae_sessao *s)  { return s ? s->erro_json.line : 0; }
 DAE_EXPORT int32_t dae_ws_json_coluna(const dae_sessao *s) { return s ? s->erro_json.col : 0; }
 DAE_EXPORT const char *dae_ws_json_msg(const dae_sessao *s) { return s ? s->erro_json.msg : ""; }

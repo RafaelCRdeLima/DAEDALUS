@@ -74,6 +74,23 @@ export class Daedalus {
     return this.rede();
   }
 
+  /** Valida um spec.json sem mexer na sessão — usado pela reimportação. */
+  validar(texto) {
+    const bytes = this.n_.lengthBytesUTF8(texto) + 1;
+    const p = this.n_._malloc(bytes);
+    try {
+      this.n_.stringToUTF8(texto, p, bytes);
+      const st = this.n_._dae_ws_valida(this.s_, p);
+      if (st === 0) return null;
+      const l = this.n_._dae_ws_json_linha(this.s_);
+      const c = this.n_._dae_ws_json_coluna(this.s_);
+      const m = this.texto_(this.n_._dae_ws_json_msg(this.s_));
+      return m ? `${l}:${c}: ${m}` : this.erro_(st);
+    } finally {
+      this.n_._free(p);
+    }
+  }
+
   rede() {
     const lo = this.n_._dae_ws_fingerprint_lo(this.s_);
     const hi = this.n_._dae_ws_fingerprint_hi(this.s_);

@@ -166,3 +166,12 @@ button.primario { border-color: #2C77A8; color: var(--dd-mode-lab-fg); }
 .rodape .alerta { color: var(--dd-icarus); }
 .rodape.ruim { color: var(--dd-terracotta); }
 .rodape.ruim b { color: var(--dd-terracotta); }
+
+.lingua { width: auto; font-size: 11px; padding: 3px 6px; color: var(--dd-fg-muted); }
+.botao-arquivo {
+  flex: 1; text-align: center; cursor: pointer;
+  border: 1px solid var(--dd-bronze); border-radius: 8px; padding: 6px 11px;
+  color: var(--dd-mode-export-fg); background: rgba(181, 129, 60, .10);
+  font-family: var(--dd-font-mono); font-size: 11px;
+}
+.botao-arquivo:hover { background: rgba(181, 129, 60, .22); }

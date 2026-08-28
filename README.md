@@ -26,10 +26,11 @@ O estado de cada etapa está em [ROADMAP.md](ROADMAP.md).
 
 ## Estado
 
-**Etapas 1 a 5 completas**: núcleo em C, geradores, métricas, WebAssembly com
-Web Worker, interface na identidade visual do projeto, `spec.json` como moeda
-comum e os três exportadores. Os testes 6 e 7 fecham com **identidade bit a
-bit** entre navegador, binário nativo e `.cpp` exportado.
+**As seis etapas completas.** Núcleo em C, geradores, métricas, WebAssembly com Web
+Worker, interface na identidade visual do projeto, `spec.json` como moeda
+comum, os três exportadores, varredura, reimportação com procedência
+obrigatória, quatro línguas e tutorial. Os testes 6 e 7 fecham com **identidade
+bit a bit** entre navegador, binário nativo e `.cpp` exportado.
 
 A aparência segue `identity/`: Azul Egeu para o que é calculado localmente,
 Bronze para o que passou pelo ciclo de exportação. A distinção é funcional.

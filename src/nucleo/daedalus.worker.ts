@@ -71,6 +71,50 @@ self.onmessage = async (ev: MessageEvent) => {
         self.postMessage({ tipo: 'exportado', alvo: msg.alvo, texto });
         break;
       }
+      case 'validar': {
+        const d = await garante();
+        self.postMessage({ tipo: 'validado', erro: d.validar(msg.spec), hash: d.hashNucleo });
+        break;
+      }
+      /* Varredura pequena: roda aqui, um ponto por vez, devolvendo progresso
+         entre eles para a interface não travar. Varredura longa é o que o .cpp
+         exportado com realizações existe para fazer. */
+      case 'varrer': {
+        const d = await garante();
+        cancelado = false;
+        const { pMin, pMax, passos, realizacoes } = msg;
+        const pontos: Array<{ p: number; media: number; desvio: number; n: number }> = [];
+        const base = JSON.parse(msg.spec);
+        for (let i = 0; i < passos && !cancelado; ++i) {
+          const p = passos === 1 ? pMin : pMin + ((pMax - pMin) * i) / (passos - 1);
+          const amostras: number[] = [];
+          for (let r = 0; r < realizacoes && !cancelado; ++r) {
+            const spec = JSON.parse(JSON.stringify(base));
+            spec.graph.params.ws_p = p;
+            spec.seed = (base.seed ?? 0) + r;
+            const rede = d.carregar(JSON.stringify(spec));
+            d.avancar(rede.nt);
+            const s = d.series();
+            /* média TEMPORAL de p_alvo — p̄, não o valor final, que oscila */
+            let soma = 0, cont = 0;
+            for (let k = 0; k < rede.nt; ++k) {
+              const v = s[k * 4 + 3];
+              if (Number.isFinite(v)) { soma += v; ++cont; }
+            }
+            amostras.push(cont > 0 ? soma / cont : Number.NaN);
+            await new Promise((res) => setTimeout(res, 0));
+          }
+          const bons = amostras.filter(Number.isFinite);
+          const media = bons.reduce((a, b) => a + b, 0) / Math.max(1, bons.length);
+          const desvio = bons.length > 1
+            ? Math.sqrt(bons.reduce((a, b) => a + (b - media) ** 2, 0) / (bons.length - 1))
+            : 0;
+          pontos.push({ p, media, desvio, n: bons.length });
+          self.postMessage({ tipo: 'varredura_passo', i: i + 1, total: passos, pontos });
+        }
+        self.postMessage({ tipo: 'varredura_fim', pontos, cancelado });
+        break;
+      }
       case 'csv': {
         const d = await garante();
         self.postMessage({ tipo: 'csv', texto: d.csv(true) });
