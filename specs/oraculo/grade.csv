@@ -1,5 +1,5 @@
 #! daedalus 0.1.0
-#! core_hash 38a7c906e0794c1d
+#! core_hash 76a843e583e9bff1
 #! implementacao c
 #! graph_fingerprint 5419345483917405537
 #! n 240
@@ -23,7 +23,7 @@
 #! n_edges 448
 #! n_components 1
 #! rewire_failed 0
-#! spec {"format_version":2,"core_hash":"38a7c906e0794c1d","seed":2026,"graph":{"generator":"grid2d","params":{"n_par":200,"n_perp":13,"seam_shift":3,"longitudinal_closed":false,"j_par":1,"j_perp":1,"n_modules":1,"ws_p":0,"conn_mode":"rewire","p_in":0,"p_out":0,"n":64,"dim":6,"rows":12,"cols":20}},"hamiltonian":{"kind":"adjacency","gamma":1,"normalization":"none","lanczos_steps":40},"initial":{"site":0},"time":{"t1":6,"nt":12},"observables":{"target":239,"population":false,"module_concurrence":true,"full_concurrence":false,"pop_stride":1},"realizations":1}
+#! spec {"format_version":2,"core_hash":"76a843e583e9bff1","seed":2026,"graph":{"generator":"grid2d","params":{"n_par":200,"n_perp":13,"seam_shift":3,"longitudinal_closed":false,"j_par":1,"j_perp":1,"n_modules":1,"ws_p":0,"conn_mode":"rewire","p_in":0,"p_out":0,"n":64,"dim":6,"rows":12,"cols":20}},"hamiltonian":{"kind":"adjacency","gamma":1,"normalization":"none","lanczos_steps":40},"initial":{"site":0},"time":{"t1":6,"nt":12},"observables":{"target":239,"population":false,"module_concurrence":true,"full_concurrence":false,"pop_stride":1},"realizations":1}
 t,norm,ipr,coh_l1,p_target,pmod0
 0.5,0.99999999999999978,0.41574849393093072,3.7937017355519407,0,0.99999999999999978
 1,1.0000000000000007,0.14541769874945348,10.689350415118147,2.1476722388596198e-50,1.0000000000000007

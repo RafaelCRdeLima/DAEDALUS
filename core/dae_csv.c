@@ -84,6 +84,13 @@ int32_t dae_csv_cabecalho_psi(const dae_spec *S, uint64_t semente_base,
     cput(&B, "\n");
     free(tmp);
   }
+  /* FECHA A STRING. Nem `ce` nem `cput` escrevem o terminador — ele e do
+     emissor, e esta funcao o esqueceu na primeira versao. O sintoma foi o mesmo
+     que o comentario de `cput` ja descrevia: `strlen` leu fora do buffer, o
+     lixo entrou no arquivo, e o cabecalho saiu com bytes binarios no meio.
+     O comentario existia e nao bastou: o terminador ser tarefa do chamador
+     convida a omissao, e por isso `t97` agora exige strlen == devolvido. */
+  if (cap > 0) buf[B.n < cap ? B.n : cap - 1] = '\0';
   return B.n;
 }
 

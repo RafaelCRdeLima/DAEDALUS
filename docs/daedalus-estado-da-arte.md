@@ -462,7 +462,7 @@ tem o mesmo comprimento, a da costura inclusive, e ela é geometricamente invis�
 na geometria, visível no espectro — é esse o argumento, e a vista 3D serve de figura para
 ele.
 
-### 5.7 Verificação da fase 2: a companheira que não é trajetória
+### 5.7 Verificação da fase 2: a companheira que não é trajetória — ✅ FEITA
 
 A média de trajetórias precisa reproduzir a solução exata de Lindblad. Sem essa conferência,
 200 realizações produzem barra de erro respeitável tanto na convergência certa quanto na
@@ -476,6 +476,43 @@ nenhuma**.
 Anti-vacuidade obrigatória, como em todo o resto: a conferência tem de ser vista falhando.
 Um número de trajetórias deliberadamente baixo, ou uma taxa de defasagem trocada, tem de
 reprovar — senão "bateu" e "o comparador está quebrado" são indistinguíveis.
+
+#### Resultado, 28/08/2026, núcleo `76a843e583e9bff1`
+
+**O desdobramento do núcleo converge para Lindblad.** `daedalus traj` escreve o ρ médio;
+`DaedalusLindblad` monta o superoperador vetorizado e o exponencia; `n = 50` (10 × 5, costura 2),
+γ = 0,4, quatro conjuntos de trajetórias:
+
+| n_traj | rms | máximo |
+|---|---|---|
+| 250 | 4,0e-4 | 2,1e-2 |
+| 1 000 | 3,1e-4 | 1,3e-2 |
+| 4 000 | 1,8e-4 | 8,1e-3 |
+| 16 000 | 5,3e-5 | 2,2e-3 |
+
+**O critério não é um limiar de desvio, é a LEI.** Ajustando `desvio ~ n^(-p)` sobre a faixa
+inteira: **p = 0,476**, contra 0,5 que Monte Carlo não enviesado prevê. Um desdobramento
+enviesado converge — para outro lugar — e o desvio estabiliza.
+
+**A companheira mostra exatamente isso.** Resolvendo Lindblad com γ = 0,8 em vez de 0,4, com
+as MESMAS trajetórias: o desvio para de cair, e **p = 0,0026**. Os dois casos ficam separados
+por um fator de 180 no expoente, o que faz do portão uma medida e não uma aposta.
+
+Duas escolhas de método que valem registro:
+
+- **RMS sobre as entradas, não o máximo.** O máximo sobre 2500 entradas é estatística de
+  extremo: cai como 1/√n igual, mas com dispersão grande. A primeira versão do portão usava
+  razões consecutivas e reprovou o caso **correto** por uma razão de 1,29 contra um limiar de
+  1,30 — reprovar por sorte. O máximo continua reportado, porque responde a outra pergunta:
+  qual o pior erro em qualquer entrada.
+- **O superoperador é montado, não atalhado.** Para defasagem pura dá para escrever direto que
+  as coerências decaem como `exp(-γt)`. Não se escreve: o atalho usa o mesmo raciocínio que se
+  quer conferir, e duas contas com o mesmo raciocínio concordam mesmo quando o raciocínio está
+  errado.
+
+Isto libera a varredura. Sem este portão, 20 000 execuções de uma dinâmica não verificada
+produziriam um plano com aparência de resultado, e a barra de erro pareceria respeitável do
+mesmo jeito.
 
 ### 5.8 Custo computacional
 

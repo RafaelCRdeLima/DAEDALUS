@@ -197,7 +197,7 @@ e tolerâncias em CONVENTIONS.md 12.1.
 
 | data | core_hash | resultado |
 |---|---|---|
-| 2026-08-28 | `38a7c906e0794c1d` | **12/12 OK.** PRNG idêntico (3 sementes × 100 valores). 12 digitais idênticas. `rewire_failed` bate, inclusive os 30 de `completo-religado`. Pior absoluto 9.4e-12, relativo 9.6e-11, amplitude 1.5e-14. Anti-vacuidade 7/7 detectou. |
+| 2026-08-28 | `76a843e583e9bff1` | **12/12 OK.** PRNG idêntico (3 sementes × 100 valores). 12 digitais idênticas. `rewire_failed` bate, inclusive os 30 de `completo-religado`. Pior absoluto 9.4e-12, relativo 9.6e-11, amplitude 1.5e-14. Anti-vacuidade 7/7 detectou. |
 
 O pior caso de amplitude é a **grade 2D** (n = 240), como se esperava de
 espectro degenerado — κ(V) maior, mais cancelamento na soma espectral.
@@ -390,6 +390,21 @@ truncado, soma fora de ordem — têm de morder. **Duas versões da sabotagem fo
 vazias antes de morder**, e o teste documenta as duas: perturbar a amostra t = 0,
 onde quase toda amplitude é exatamente zero, e perturbar 1 ULP numa média de 24
 trajetórias, que fica abaixo da resolução do próprio acumulado.
+
+#### O portão de Lindblad — ✅ passado antes de qualquer varredura
+
+A média de trajetórias do núcleo **converge para a solução exata de Lindblad**, verificada
+pelo pacote Wolfram com o superoperador vetorizado — um método que não é trajetória nenhuma.
+Em n = 50, γ = 0,4, com 250 a 16 000 trajetórias, o desvio cai como `n^(-0,476)` contra o
+`n^(-0,5)` que Monte Carlo não enviesado prevê. A companheira, resolvendo Lindblad com γ
+errado sobre as mesmas trajetórias, dá expoente **0,0026**: o desvio estabiliza, como tem de
+estabilizar quando o alvo é outro.
+
+O critério é a **lei**, não um limiar: um limiar sozinho não distingue "convergiu" de
+"convergiu para outro lugar". Detalhes e tabela em `docs/daedalus-estado-da-arte.md` 5.7.
+
+`daedalus traj <spec> --saida rho.csv` escreve o ρ médio com procedência completa; os quatro
+conjuntos de referência estão em `specs/lindblad/`.
 
 **Ressalva, e ela é sobre o que a regra proíbe.** A regra é sobre PROPAGAR: o
 estado continua sendo vetor `O(N)` em cada trajetória. Ela não proíbe usar uma

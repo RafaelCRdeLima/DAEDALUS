@@ -299,6 +299,12 @@ int main(void)
     need = dae_csv_cabecalho_psi(&Sp, 777ULL, G.n, na, cfg.n_traj, NULL, 0);
     cab = (char *)malloc((size_t)need + 1);
     dae_csv_cabecalho_psi(&Sp, 777ULL, G.n, na, cfg.n_traj, cab, need + 1);
+    /* O tamanho devolvido e o tamanho da string. Sem isto, os strstr abaixo
+       passam por sorte quando o malloc devolve memoria zerada — foi assim que
+       a falta do terminador atravessou a primeira versao deste teste. */
+    dae_test_ok(&T, (int32_t)strlen(cab) == need,
+                "o cabecalho esta fechado: strlen %d contra devolvido %d",
+                (int)strlen(cab), (int)need);
     dae_test_ok(&T, strstr(cab, "#! core_hash ") != NULL, "acervo traz core_hash");
     dae_test_ok(&T, strstr(cab, "#! implementacao c") != NULL, "acervo traz implementacao");
     dae_test_ok(&T, strstr(cab, "#! semente_base 777") != NULL, "acervo traz a semente-base");

@@ -412,6 +412,31 @@ que procuraram X e falharam, senão a ausência de evidência não mostra onde p
 Aplicado em `bibliografia/TRIAGEM.md`, que traz as duas coisas: a tabela das 13 consultas
 com o número de resultados de cada uma, e a conferência da extração antes das contagens.
 
+### 10.1.7 Toda comparação numérica declara a sua RESOLUÇÃO
+
+Uma tolerância diz o que a comparação aceita. Ela não diz o que a comparação
+**consegue ver** — e são perguntas diferentes, com respostas que podem estar em
+lados opostos.
+
+**Para toda comparação numérica, meça o menor desvio que ela detecta, e registre
+esse número ao lado da tolerância.** Um teste cujo limiar de sensibilidade nunca
+foi medido pode estar passando por não conseguir enxergar, e ninguém saberia: um
+verde por concordância e um verde por cegueira são o mesmo verde.
+
+O caso que originou a regra está em `t97_modos_saida`. A sabotagem de 1 ULP na
+maior amplitude **não** quebra a igualdade entre os dois modos de saída, e isso
+não é defeito da comparação — é a resolução dela: numa média sobre 24
+trajetórias, uma perturbação relativa de ~1e-16 numa contribuição vira ~4e-18 no
+resultado, abaixo do ULP do próprio acumulado. O teste passa a declarar isso, e
+usa sabotagens acima desse piso (precisão de f32, acervo truncado).
+
+Corolário, e é a outra metade da mesma lição: **a sabotagem precisa atingir uma
+quantidade que participa do resultado.** A primeira versão daquela companheira
+perturbava a amostra `t = 0`, onde ψ = δ e quase toda amplitude vale exatamente
+zero; `nextafter(0)` dá um denormal de 5e-324 que desaparece na primeira
+multiplicação. "Alterei um valor" não é "alterei um valor que importa", e um
+teste que ataca o lugar errado é tão inerte quanto um que não ataca.
+
 ### 10.2 Fixtures com resposta conhecida, e anti-vacuidade junto
 
 Com `seam_shift = 0` a rede é o produto cartesiano `P_41 × C_13`: a dinâmica

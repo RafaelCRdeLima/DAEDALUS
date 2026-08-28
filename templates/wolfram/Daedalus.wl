@@ -138,6 +138,24 @@ declarada.\n\n\
 Esta verificação é MANUAL: a integração contínua do projeto não tem Mathematica. \
 O ROADMAP.md registra quando foi rodada, com qual core_hash e com que resultado.";
 
+DaedalusLindblad::usage =
+  "DaedalusLindblad[espec] resolve a equação de Lindblad de defasagem pura \
+EXATAMENTE, montando o superoperador vetorizado e exponenciando-o. Devolve \
+<|\"Tempos\", \"Rho\", \"Escala\"|>.\n\n\
+Este é o método que NÃO é trajetória nenhuma. A média de trajetórias do núcleo \
+em C tem de convergir para ele — e sem essa companheira, \"as trajetórias \
+convergiram\" e \"as trajetórias convergiram para a coisa errada\" são \
+indistinguíveis: com 200 realizações a barra de erro parece respeitável nos dois \
+casos.";
+
+DaedalusVerificarTrajetorias::usage =
+  "DaedalusVerificarTrajetorias[{arquivos}] compara os ρ médios que \
+`daedalus traj` escreveu contra a solução exata de Lindblad.\n\n\
+O critério NÃO é um limiar de desvio: é a LEI DE CONVERGÊNCIA. O erro de Monte \
+Carlo cai como 1/√n_traj, então quadruplicar as trajetórias tem de reduzir o \
+desvio pela metade. Um desdobramento enviesado converge — para outro lugar — e \
+o desvio ESTABILIZA em vez de cair. É a diferença que um limiar sozinho não vê.";
+
 DaedalusAntiVacuidade::usage =
   "DaedalusAntiVacuidade[\"pasta\"] mostra que DaedalusVerificarReferencia PODE \
 reprovar, e reprovar pelo motivo certo. Sabota deliberadamente o grafo, o fluxo \
@@ -1027,6 +1045,144 @@ DaedalusVerificarReferencia[pasta_String, OptionsPattern[]] := Module[
     "Veredito" -> If[prngOK && AllTrue[relatorio, Lookup[#, "Veredito", ""] === "OK" &],
       "TUDO OK", "HÁ CASOS FORA"]|>];
 
+
+(* ==========================================================================
+   LINDBLAD EXATO, POR SUPEROPERADOR VETORIZADO
+
+   Defasagem pura, L_j = sqrt(gamma)|j><j|. Vetorizando por LINHAS, que é como
+   Flatten empilha em Wolfram, vec(A rho B) = (A ⊗ B^T) vec(rho), e daí
+
+     L = -i (H ⊗ I - I ⊗ H^T) + gamma (Sum_j P_j ⊗ P_j) - gamma I
+
+   O último par de termos é o dissipador: Sum_j P_j rho P_j mantém só a diagonal,
+   e -gamma/2 {Sum_j L_j^dag L_j, rho} = -gamma rho porque Sum_j L_j^dag L_j =
+   gamma I. Ou seja, as coerências decaem a taxa gamma e as populações não.
+
+   Podia-se pular tudo isso e escrever direto "off-diagonal decai a exp(-gamma t)".
+   NÃO se pula de propósito: o atalho analítico usa o mesmo raciocínio que se
+   quer conferir, e duas contas com o mesmo raciocínio concordam mesmo quando o
+   raciocínio está errado. Montar o superoperador é o caminho independente.
+   ========================================================================== *)
+
+Options[DaedalusLindblad] = {"EscalaImposta" -> Automatic, "Amostras" -> Automatic};
+
+DaedalusLindblad[espec_Association, OptionsPattern[]] := Module[
+  {rede, ham, n, H, Id, proj, L, rho0, dt, stride, nt, tempos, vec},
+  rede = DaedalusRede[espec];
+  ham = DaedalusHamiltoniano[rede, espec,
+          "EscalaImposta" -> OptionValue["EscalaImposta"]];
+  H = N[Normal[ham["H"]]];
+  n = Length[H];
+  Id = IdentityMatrix[n, SparseArray];
+
+  (* Sum_j P_j ⊗ P_j: 1 em cada posicao ((j,j),(j,j)) da matriz n^2 x n^2 *)
+  proj = SparseArray[
+    Table[{(j - 1) n + j, (j - 1) n + j} -> 1., {j, n}], {n^2, n^2}];
+
+  L = -I (KroneckerProduct[H, Id] - KroneckerProduct[Id, Transpose[H]]) +
+      espec["trajectories"]["gamma_deph"] (proj - IdentityMatrix[n^2, SparseArray]);
+
+  rho0 = ConstantArray[0., {n, n}];
+  rho0[[espec["initial"]["site"] + 1, espec["initial"]["site"] + 1]] = 1.;
+  vec = Flatten[rho0];
+
+  nt = espec["time"]["nt"];
+  dt = espec["time"]["t1"]/nt;
+  stride = espec["trajectories"]["rho_stride"];
+  tempos = Table[k stride dt, {k, 0, Floor[nt/stride]}];
+
+  <|"Tempos" -> tempos,
+    "Rho" -> Table[ArrayReshape[MatrixExp[L t, vec], {n, n}], {t, tempos}],
+    "Escala" -> ham["Escala"]|>];
+
+(* Le o rho medio que `daedalus traj` escreveu. *)
+leRhoCSV[texto_String] := Module[{linhas, cab, n, na, dados, rho},
+  cab = leCabecalhoCSV[texto];
+  n = ToExpression[cab["n"]];
+  na = ToExpression[cab["n_amostras"]];
+  linhas = StringSplit[texto, "\n"];
+  dados = Select[Drop[linhas, Position[linhas, "s,t,i,j,re,im", 1][[1, 1]]],
+    StringContainsQ[#, ","] &];
+  rho = ConstantArray[0. + 0. I, {na, n, n}];
+  Do[Module[{c = StringSplit[l, ","]},
+      rho[[ToExpression[c[[1]]] + 1, ToExpression[c[[3]]] + 1,
+           ToExpression[c[[4]]] + 1]] = paraNumero[c[[5]]] + I paraNumero[c[[6]]]],
+    {l, dados}];
+  <|"Cabecalho" -> cab, "N" -> n, "NAmostras" -> na, "Rho" -> rho,
+    "NTraj" -> ToExpression[cab["n_traj"]],
+    "Escala" -> paraNumero[cab["scale"]]|>];
+
+DaedalusVerificarTrajetorias::poucos = "Sao precisos ao menos tres arquivos com n_traj diferentes: a LEI de convergencia so aparece com tres pontos, e um desvio isolado nao distingue \"convergiu\" de \"convergiu para outro lugar\".";
+
+Options[DaedalusVerificarTrajetorias] = {"Verboso" -> True, "GammaSabotado" -> Automatic};
+
+DaedalusVerificarTrajetorias[arquivos_List, OptionsPattern[]] := Module[
+  {lidos, espec, exato, desvios, maximos, ns, razoes, esperado, expoente, veredito,
+   verboso = OptionValue["Verboso"]},
+  If[Length[arquivos] < 3, Message[DaedalusVerificarTrajetorias::poucos]; Return[$Failed]];
+
+  lidos = leRhoCSV[Import[#, "Text"]] & /@ arquivos;
+  lidos = SortBy[lidos, #["NTraj"] &];
+  espec = DaedalusEspecLer[lidos[[1]]["Cabecalho"]["spec"]];
+
+  (* A escala do NUCLEO e imposta: ela e estimativa de Lanczos, a nossa seria o
+     raio exato, e sem impor os dois compararao dinamicas de H diferentes — a
+     discordancia apareceria como desdobramento errado. *)
+  (* Sabotagem opcional: resolve Lindblad com OUTRA taxa de defasagem. As
+     trajetorias entao convergem para um alvo que nao e este, e o desvio tem de
+     ESTABILIZAR em vez de cair. E a companheira que separa "o teste detecta
+     convergencia" de "o teste detecta qualquer coisa". *)
+  If[NumericQ[OptionValue["GammaSabotado"]],
+    espec["trajectories"]["gamma_deph"] = OptionValue["GammaSabotado"]];
+
+  exato = DaedalusLindblad[espec, "EscalaImposta" -> lidos[[1]]["Escala"]];
+
+  (* RMS sobre as entradas, nao o maximo. O maximo sobre 2500 entradas e
+     estatistica de EXTREMO: ele tambem cai como 1/sqrt(n), mas com dispersao
+     grande, e um portao construido sobre ele reprovaria por sorte. O RMS mede a
+     mesma lei com muito menos ruido. O maximo continua reportado, porque e ele
+     que responde "qual o pior erro em qualquer entrada". *)
+  desvios = Table[
+    Sqrt@Mean@Flatten@Table[
+      Abs[r["Rho"][[k]] - exato["Rho"][[k]]]^2, {k, r["NAmostras"]}],
+    {r, lidos}];
+  maximos = Table[
+    Max@Table[Max@Abs@Flatten[r["Rho"][[k]] - exato["Rho"][[k]]], {k, r["NAmostras"]}],
+    {r, lidos}];
+  ns = #["NTraj"] & /@ lidos;
+
+  (* A LEI, e ela e ajustada sobre TODOS os pontos: desvio ~ n^(-p), com p = 1/2
+     para Monte Carlo nao enviesado. Uma razao entre dois pontos consecutivos tem
+     variancia propria — na primeira versao deste portao o caso CORRETO reprovou
+     por uma razao de 1.29 contra um limiar de 1.3, que e reprovar por sorte. O
+     expoente usa a faixa inteira e separa os dois casos por duas ordens de
+     grandeza: 0.49 quando converge, 0.006 quando o alvo esta errado. *)
+  razoes = Table[desvios[[i]]/desvios[[i + 1]], {i, Length[desvios] - 1}];
+  esperado = Table[Sqrt[ns[[i + 1]]/ns[[i]]], {i, Length[ns] - 1}];
+  expoente = -Last[
+    Coefficient[Fit[Transpose[{Log[N@ns], Log[desvios]}], {1, x}, x], {1, x}]];
+
+  If[verboso,
+    Print["Lindblad exato contra media de trajetorias do nucleo em C"];
+    Do[Print["  n_traj = ", StringPadLeft[ToString[ns[[i]]], 6],
+             "   rms = ", ScientificForm[desvios[[i]], 3],
+             "   maximo = ", ScientificForm[maximos[[i]], 3]],
+       {i, Length[ns]}];
+    Do[Print["  ", ns[[i]], " -> ", ns[[i + 1]], ": caiu ",
+             NumberForm[razoes[[i]], 3], "x  (a lei 1/sqrt(n) preve ",
+             NumberForm[esperado[[i]], 3], "x)"], {i, Length[razoes]}]];
+
+  veredito = If[expoente > 0.35,
+    "CONVERGE para Lindblad", "NAO CONVERGE — o desvio nao cai com n_traj"];
+  If[verboso,
+    Print["  expoente ajustado: desvio ~ n^(-", NumberForm[expoente, 3],
+          "), a lei preve n^(-0.5)"];
+    Print["  ", veredito]];
+
+  <|"NTraj" -> ns, "Desvios" -> desvios, "Maximos" -> maximos, "Expoente" -> expoente,
+    "Razoes" -> razoes,
+    "RazoesEsperadas" -> esperado, "Veredito" -> veredito,
+    "Exato" -> exato|>];
 
 (* ==========================================================================
    ANTI-VACUIDADE
