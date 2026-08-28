@@ -28,24 +28,47 @@ uint64_t dae_traj_semente(uint64_t base, int32_t idx)
   return z ^ (z >> 31);
 }
 
-dae_status dae_rho_acc_init(dae_rho_acc *A, int32_t n, int32_t n_amostras)
+static dae_status acc_init(dae_rho_acc *A, int32_t n, int32_t n_amostras, int com_m2)
 {
   size_t tot;
   if (!A || n <= 0 || n_amostras <= 0) return DAE_ERR_PARAM;
   A->n = n; A->n_amostras = n_amostras; A->proxima = 0; A->somadas = 0;
-  A->n_traj_alvo = 0;
+  A->n_traj_alvo = 0; A->m2 = NULL;
   tot = (size_t)n_amostras * (size_t)n * (size_t)n;
   A->re = (double *)calloc(tot, sizeof(double));
   A->im = (double *)calloc(tot, sizeof(double));
   if (!A->re || !A->im) { dae_rho_acc_free(A); return DAE_ERR_ALLOC; }
+  if (com_m2) {
+    A->m2 = (double *)calloc(tot, sizeof(double));
+    if (!A->m2) { dae_rho_acc_free(A); return DAE_ERR_ALLOC; }
+  }
   return DAE_OK;
+}
+
+dae_status dae_rho_acc_init(dae_rho_acc *A, int32_t n, int32_t n_amostras)
+{ return acc_init(A, n, n_amostras, 0); }
+
+dae_status dae_rho_acc_init_wk(dae_rho_acc *A, int32_t n, int32_t n_amostras)
+{ return acc_init(A, n, n_amostras, 1); }
+
+double dae_rho_acc_mod2_sem_vies(const dae_rho_acc *A, int32_t amostra,
+                                 int32_t i, int32_t j, int32_t n_traj)
+{
+  size_t k;
+  double q, u;
+  if (!A || !A->m2 || n_traj < 2) return 0.0;
+  k = (size_t)amostra * (size_t)A->n * (size_t)A->n +
+      (size_t)i * (size_t)A->n + (size_t)j;
+  q = A->re[k] * A->re[k] + A->im[k] * A->im[k];
+  u = ((double)n_traj * q - A->m2[k]) / (double)(n_traj - 1);
+  return u > 0.0 ? u : 0.0;
 }
 
 void dae_rho_acc_free(dae_rho_acc *A)
 {
   if (!A) return;
-  free(A->re); free(A->im);
-  A->re = NULL; A->im = NULL; A->n = 0; A->n_amostras = 0;
+  free(A->re); free(A->im); free(A->m2);
+  A->re = NULL; A->im = NULL; A->m2 = NULL; A->n = 0; A->n_amostras = 0;
 }
 
 dae_status dae_rho_acc_somar(dae_rho_acc *A, int32_t idx,
@@ -63,12 +86,17 @@ dae_status dae_rho_acc_somar(dae_rho_acc *A, int32_t idx,
     const double *pi = im + (size_t)s * (size_t)A->n;
     double *ar = A->re + (size_t)s * (size_t)A->n * (size_t)A->n;
     double *ai = A->im + (size_t)s * (size_t)A->n * (size_t)A->n;
+    double *am = A->m2 ? A->m2 + (size_t)s * (size_t)A->n * (size_t)A->n : NULL;
     for (i = 0; i < A->n; ++i) {
       const double xr = pr[i], xi = pi[i];
+      const double qi = xr * xr + xi * xi;
       for (j = 0; j < A->n; ++j) {
         /* psi_i psi_j^* */
         ar[(size_t)i * (size_t)A->n + (size_t)j] += xr * pr[j] + xi * pi[j];
         ai[(size_t)i * (size_t)A->n + (size_t)j] += xi * pr[j] - xr * pi[j];
+        /* |X_ij|^2 = |psi_i|^2 |psi_j|^2, e e REAL */
+        if (am) am[(size_t)i * (size_t)A->n + (size_t)j] +=
+          qi * (pr[j] * pr[j] + pi[j] * pi[j]);
       }
     }
   }
@@ -85,6 +113,7 @@ void dae_rho_acc_finalizar(dae_rho_acc *A)
   tot = (size_t)A->n_amostras * (size_t)A->n * (size_t)A->n;
   inv = 1.0 / (double)A->somadas;
   for (k = 0; k < tot; ++k) { A->re[k] *= inv; A->im[k] *= inv; }
+  if (A->m2) for (k = 0; k < tot; ++k) A->m2[k] *= inv;
 }
 
 /* Colapso: escolhe j com probabilidade |psi_j|^2 e projeta. A busca e linear e

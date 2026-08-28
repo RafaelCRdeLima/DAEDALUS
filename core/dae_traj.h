@@ -70,12 +70,38 @@ typedef enum {
 typedef struct {
   int32_t  n, n_amostras;
   double  *re, *im;      /* n_amostras * n * n, ordem linha-maior */
+  /* Segundo momento, REAL: m2_ij = media_k |psi_i^k|^2 |psi_j^k|^2. Existe so
+     quando o acumulador foi criado por `dae_rho_acc_init_wk`, e serve para uma
+     coisa: tornar |rho_ij|^2 NAO ENVIESADO. Ver o cabecalho de dae_traj.h. */
+  double  *m2;
   int32_t  proxima;      /* indice da proxima trajetoria aceita   */
   int32_t  somadas;
   int32_t  n_traj_alvo;  /* informativo; nao usado pelo acumulador */
 } dae_rho_acc;
 
 dae_status dae_rho_acc_init(dae_rho_acc *A, int32_t n, int32_t n_amostras);
+
+/* Como o anterior, mas acumula tambem o segundo momento, o que permite a
+ * correcao de vies de Wardle-Kronberg. Custa mais uma matriz N x N REAL por
+ * amostra — metade da memoria de uma complexa. */
+dae_status dae_rho_acc_init_wk(dae_rho_acc *A, int32_t n, int32_t n_amostras);
+
+/* |rho_ij|^2 sem vies, pela U-estatistica de grau 2:
+ *
+ *     |rho_ij|^2_U = ( n |rho^_ij|^2 - m2_ij ) / (n - 1)
+ *
+ * Exatamente nao enviesado: E[n|rho^|^2] = (n-1)|rho|^2 + E|X|^2, e m2 estima
+ * E|X|^2. E a mesma conta que a radioastronomia chama de correcao de
+ * Wardle-Kronberg (subtraia a variancia do quadrado antes de tirar a raiz) e
+ * que a literatura de medidas aleatorizadas chama de U-estatistica.
+ *
+ * Devolve 0 quando a estimativa sai negativa — o que acontece justamente onde
+ * o valor verdadeiro e ~0. Esse corte reintroduz um vies positivo pequeno, e e
+ * o vies residual que Simmons & Stewart (1985) mostraram que NENHUM metodo
+ * conhecido elimina em SNR baixo. Nao se finge que ele nao existe: a
+ * extrapolacao em n existe para medi-lo. */
+double     dae_rho_acc_mod2_sem_vies(const dae_rho_acc *A, int32_t amostra,
+                                     int32_t i, int32_t j, int32_t n_traj);
 void       dae_rho_acc_free(dae_rho_acc *A);
 
 /* Soma psi psi^dag da trajetoria `idx`. EXIGE idx == A->proxima. */

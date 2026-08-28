@@ -74,6 +74,21 @@ static void coerencias(const dae_rho_acc *A, const dae_graph *G, int32_t s,
   *c_inter = inter; *c_intra = intra; *c_l1 = inter + intra;
 }
 
+/* C_inter com a correcao de vies de Wardle-Kronberg aplicada POR ENTRADA:
+   |rho_ij| <- sqrt( (n|rho^_ij|^2 - m2_ij)/(n-1) ), cortado em zero. */
+static double c_inter_wk(const dae_rho_acc *A, const dae_graph *G, int32_t s,
+                         int32_t n_traj)
+{
+  double inter = 0.0;
+  int32_t i, j;
+  for (i = 0; i < A->n; ++i)
+    for (j = 0; j < A->n; ++j) {
+      if (i == j || G->module_of[i] == G->module_of[j]) continue;
+      inter += sqrt(dae_rho_acc_mod2_sem_vies(A, s, i, j, n_traj));
+    }
+  return inter;
+}
+
 /* Tridiagonalizacao de Householder, SEM acumular autovetores. E a diferenca
    entre 2 s e 135 s: a entropia precisa so dos autovalores, e Jacobi paga
    autovetores que ninguem usa. Medido no proprio problema (2N = 1040), Jacobi
@@ -245,12 +260,12 @@ int main(int argc, char **argv)
      ele convergir como 1/sqrt(n) e C_inter nao, a anomalia e da NAO LINEARIDADE
      do |.| e nao do PRNG. Se nem ele convergir, o problema e correlacao entre
      trajetorias, e ai nada mais importa ate isso ser resolvido. */
-  printf("n_traj,replica,c_inter,c_intra,c_l1,ef_transfer,c_rel,pmod0,c_inter_deb,segundos\n");
+  printf("n_traj,replica,c_inter,c_intra,c_l1,ef_transfer,c_rel,pmod0,c_inter_deb,c_inter_wk,segundos\n");
 
   for (k = 0; k < nn; ++k) {
     for (r = 0; r < replicas; ++r) {
       dae_rho_acc A, Aq;
-      double ci, ca, cl, ciq, caq, clq, ef = 0.0, cr = NAN, t0;
+      double ci, ca, cl, ciq, caq, clq, ci_wk, ef = 0.0, cr = NAN, t0;
       int32_t s;
       if (grafo_varia) {
         dae_cheb_free(&W); dae_csr_free(&H); dae_graph_free(&G);
@@ -264,7 +279,7 @@ int main(int argc, char **argv)
         if (st != DAE_OK) { fprintf(stderr, "cheb r=%d: %s\n", r, dae_strerror(st)); return 1; }
       }
       cfg.n_traj = niveis[k];
-      st = dae_rho_acc_init(&A, G.n, na);
+      st = dae_rho_acc_init_wk(&A, G.n, na);
       if (st != DAE_OK) { fprintf(stderr, "acumulador: %s\n", dae_strerror(st)); return 1; }
       /* Segundo acumulador sobre o PRIMEIRO QUARTO das mesmas trajetorias.
          E o que torna a correcao de vies gratuita: nenhuma trajetoria a mais,
@@ -283,6 +298,7 @@ int main(int argc, char **argv)
       dae_rho_acc_finalizar(&Aq);
       coerencias(&A, &G, na - 1, &ci, &ca, &cl);
       coerencias(&Aq, &G, na - 1, &ciq, &caq, &clq);
+      ci_wk = c_inter_wk(&A, &G, na - 1, niveis[k]);
       /* Eficiencia de transferencia: media TEMPORAL de rho_alvo,alvo sobre as
          amostras. Sai do MESMO ensemble que C_inter — se viesse de outra
          rodada, a distancia entre as duas cristas de H2b mediria ruido
@@ -308,8 +324,9 @@ int main(int argc, char **argv)
            Com C(n) e C(n/4) do MESMO ensemble, 2C(n) - C(n/4) cancela B
            exatamente, e as duas estimativas sao correlacionadas, o que mantem a
            variancia menor do que se viessem de ensembles separados. */
-        printf("%d,%d,%.17g,%.17g,%.17g,%.17g,%.17g,%.17g,%.17g,%.4f\n",
-               niveis[k], r, ci, ca, cl, ef, cr, p0, 2.0 * ci - ciq, agora() - t0); }
+        printf("%d,%d,%.17g,%.17g,%.17g,%.17g,%.17g,%.17g,%.17g,%.17g,%.4f\n",
+               niveis[k], r, ci, ca, cl, ef, cr, p0, 2.0 * ci - ciq, ci_wk,
+               agora() - t0); }
       fflush(stdout);
       dae_rho_acc_free(&A); dae_rho_acc_free(&Aq);
     }

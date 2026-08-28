@@ -702,8 +702,81 @@ Descartadas: 10 × 10 com os mesmos `n` (45 h, comprometendo demais antes de sab
 crista) e a de tolerância afrouxada para `sd = Δ/3`, que economiza pouco e mexe justamente no
 fator que separa "há crista" de "há superfície irregular".
 
-**A varredura não está liberada.** Falta implementar a correção de Wardle–Kronberg e
-verificá-la — a Seção 5.9 explica por quê.
+#### A correção implementada e verificada — a varredura está liberada
+
+`|ρ_ij|²` sem viés, pela U-estatística de grau 2, que é a correção de Wardle–Kronberg
+escrita como estimador:
+
+```
+|ρ_ij|²_U = ( n·|ρ̂_ij|² − m2_ij ) / (n − 1)        m2_ij = ⟨ |ψ_i|² |ψ_j|² ⟩_k
+```
+
+Exatamente não enviesada: `E[n|ρ̂|²] = (n−1)|ρ|² + E|X|²`, e `m2` estima `E|X|²`. Custa **um
+acumulador REAL N² por amostra** — metade da memória do complexo, 45 MB contra os 91 MB de ρ.
+
+Verificada exigindo que ela seja **plana em n**, nas duas células onde os regimes são mais
+diferentes:
+
+| | bruto | Richardson | **Wardle–Kronberg** |
+|---|---|---|---|
+| deriva, A (γ = 0,05) | +26,0% | +8,8% | **+7,1%** |
+| `sd` em n = 800, A | 0,934 | 1,735 | **0,954** |
+| deriva, D (p = 0,40) | +127,4% | **+546,6%** | **+65,5%** |
+| `sd` em n = 800, D | 0,291 | 0,711 | **0,189** |
+
+Wardle–Kronberg ganha nos dois eixos: menos deriva **e** menos variância. Richardson colapsa
+em `p` alto, como a sonda D já indicava.
+
+**E o resíduo é quantificado, não ignorado.** Ajustando `C(n) = C∞ + B/√n`:
+
+| célula | estimador | B | C∞ | viés em n = 63 000 | `sd` em n = 63 000 |
+|---|---|---|---|---|---|
+| A | bruto | 48,7 | 10,34 | 0,194 | 0,105 |
+| A | **Wardle–Kronberg** | **12,1** | 10,67 | **0,048** | 0,108 |
+| D | bruto | 84,2 | 1,25 | 0,336 | 0,019 |
+| D | **Wardle–Kronberg** | **19,8** | 1,20 | **0,079** | 0,014 |
+
+A correção derruba o coeficiente de viés por **4×**, os dois estimadores extrapolam para o
+mesmo `C∞` (10,34 contra 10,67; 1,25 contra 1,20), e no orçamento da grade o viés residual
+vale 0,05 a 0,08 contra o critério de Δ/5 = 0,196. **Passa com folga de 2,5×**, e a variância
+também.
+
+O resíduo que sobra é o corte em zero do `|ρ|²` negativo — precisamente o viés que Simmons &
+Stewart mostraram que nenhum método elimina em SNR baixo. Ele não é ignorado: a extrapolação
+em `n` existe para medi-lo, e é esse o papel dela daqui em diante. **Dois métodos, um deles
+usado só para auditar o outro** — o mesmo arranjo do Wolfram contra o Chebyshev.
+
+#### `C_rel` fica fora do plano, e há um número que decide isso
+
+`C_rel` derivou 132% na sonda contra os 51% do `C_inter`, e a literatura explica por quê: a
+entropia envolve o logaritmo do espectro, e os autovalores pequenos de `ρ̂` são justamente os
+mais contaminados por ruído de amostragem.
+
+**Miller–Madow não serve** — foi desenhado para distribuições discretas com contagens. O caso
+aqui é entropia de von Neumann de uma matriz densidade estimada, que é literatura própria. E
+ela dá um número que decide o escopo: **o estimador plug-in tem barreira quadrática, Ω(d²)
+amostras** ([AISW20], e o trabalho de 2026 que a quebra parcialmente). Com `d = N = 520`,
+
+```
+d² = 270 400        contra        n = 63 000 da grade
+```
+
+Estamos a **23% do necessário**. O `C_rel` calculado por plug-in no orçamento da varredura
+está provadamente fora de alcance, e os 132% de deriva medidos são o sintoma disso.
+
+**Decisão:** `C_rel` não vai no plano. Ele entra em **algumas células selecionadas**, com `n`
+muito maior, como verificação de que as duas medidas **ordenam do mesmo jeito**. Isso preserva
+o argumento de teoria de recursos sem pendurar 49 células num estimador que não se sustenta
+no orçamento.
+
+#### Isto vira seção do artigo
+
+Não é detalhe de método. **"Estimação de medidas de coerência não polinomiais a partir de
+trajetórias, e por que o viés não cancela numa varredura"** conecta o trabalho a
+Wardle–Kronberg, ao viés Riciano e à barreira quadrática da entropia de von Neumann —
+literaturas que ninguém em transporte quântico cita. É mais um pedaço de ponte, no mesmo
+espírito da coerência de bloco: o objeto tem estatuto de um lado e o fenômeno tem estatuto do
+outro, e o trabalho é ligá-los.
 
 ### 5.8 Custo computacional
 
