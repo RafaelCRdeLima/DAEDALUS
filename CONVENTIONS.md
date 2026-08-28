@@ -437,6 +437,30 @@ zero; `nextafter(0)` dá um denormal de 5e-324 que desaparece na primeira
 multiplicação. "Alterei um valor" não é "alterei um valor que importa", e um
 teste que ataca o lugar errado é tão inerte quanto um que não ataca.
 
+### 10.1.8 Antes de culpar o gerador, teste um estimador LINEAR
+
+Quando o desvio de uma média sobre amostras não cai como `1/√n`, a conclusão
+óbvia é correlação entre as amostras — e o suspeito óbvio é o gerador de números
+aleatórios. A conclusão óbvia pode estar errada, e o custo de investigá-la é
+alto: o PRNG é a peça mais frágil e mais cara de auditar do projeto.
+
+**Rode o mesmo diagnóstico sobre um estimador LINEAR nas mesmas amostras.**
+
+Um funcional linear da média amostral é não enviesado e obedece `1/√n` por
+construção. Se ele obedecer e o outro não, as amostras estão bem e o problema é
+a **não linearidade** do funcional. Se nem ele obedecer, aí sim há correlação
+entre amostras, e nada mais importa até isso ser resolvido.
+
+O caso que originou a regra, em 28/08/2026: `C_inter = Σ|ρ_ij|` dava
+`sd ~ n^(-0,16)` contra os `n^(-0,5)` esperados. O controle linear — população
+de um módulo, `Σ_{i∈M} ρ_ii` — deu `n^(-0,56)` no mesmo conjunto de trajetórias.
+Diagnóstico em uma execução, sem tocar no gerador.
+
+E o que estava acontecendo é conhecido, com nome, em pelo menos três
+literaturas: `|·|` é convexo, então por Jensen `E[Σ|ρ̂_ij|] ≥ Σ|E ρ̂_ij|` —
+**viés positivo garantido**, que cai como `1/√n`, a mesma taxa do ruído. Ver
+`docs/daedalus-estado-da-arte.md` 5.9.
+
 ### 10.2 Fixtures com resposta conhecida, e anti-vacuidade junto
 
 Com `seam_shift = 0` a rede é o produto cartesiano `P_41 × C_13`: a dinâmica

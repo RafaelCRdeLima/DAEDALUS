@@ -5,6 +5,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+static dae_status dae_traj_ensemble_i(const dae_traj_cfg *cfg, uint64_t semente_base,
+                                      dae_cheb *W, const dae_csr *H,
+                                      dae_rho_acc *A, dae_traj_sink sink, void *user,
+                                      dae_rho_acc *Aq, int32_t corte);
+
 int32_t dae_traj_amostras(const dae_traj_cfg *cfg)
 {
   if (!cfg || cfg->nt <= 0 || cfg->rho_stride <= 0) return 0;
@@ -28,6 +33,7 @@ dae_status dae_rho_acc_init(dae_rho_acc *A, int32_t n, int32_t n_amostras)
   size_t tot;
   if (!A || n <= 0 || n_amostras <= 0) return DAE_ERR_PARAM;
   A->n = n; A->n_amostras = n_amostras; A->proxima = 0; A->somadas = 0;
+  A->n_traj_alvo = 0;
   tot = (size_t)n_amostras * (size_t)n * (size_t)n;
   A->re = (double *)calloc(tot, sizeof(double));
   A->im = (double *)calloc(tot, sizeof(double));
@@ -97,9 +103,24 @@ static void colapsar(double *re, double *im, int32_t n, double u)
   re[escolhido] = 1.0;
 }
 
+dae_status dae_traj_ensemble_dupla(const dae_traj_cfg *cfg, uint64_t semente_base,
+                                   dae_cheb *W, const dae_csr *H,
+                                   dae_rho_acc *A, dae_rho_acc *Aq, int32_t corte)
+{
+  return dae_traj_ensemble_i(cfg, semente_base, W, H, A, NULL, NULL, Aq, corte);
+}
+
 dae_status dae_traj_ensemble(const dae_traj_cfg *cfg, uint64_t semente_base,
                              dae_cheb *W, const dae_csr *H,
                              dae_rho_acc *A, dae_traj_sink sink, void *user)
+{
+  return dae_traj_ensemble_i(cfg, semente_base, W, H, A, sink, user, NULL, 0);
+}
+
+static dae_status dae_traj_ensemble_i(const dae_traj_cfg *cfg, uint64_t semente_base,
+                                      dae_cheb *W, const dae_csr *H,
+                                      dae_rho_acc *A, dae_traj_sink sink, void *user,
+                                      dae_rho_acc *Aq, int32_t corte)
 {
   const int32_t n = H ? H->n : 0;
   int32_t na, idx, s;
@@ -170,6 +191,7 @@ dae_status dae_traj_ensemble(const dae_traj_cfg *cfg, uint64_t semente_base,
 
     if (cfg->saida == DAE_SAIDA_ACUMULAR_RHO) {
       st = dae_rho_acc_somar(A, idx, amre, amim);
+      if (st == DAE_OK && Aq && idx < corte) st = dae_rho_acc_somar(Aq, idx, amre, amim);
     } else {
       st = sink(user, idx, amre, amim, na, n);
     }

@@ -541,6 +541,170 @@ Isto libera a varredura. Sem este portão, 20 000 execuções de uma dinâmica n
 produziriam um plano com aparência de resultado, e a barra de erro pareceria respeitável do
 mesmo jeito.
 
+### 5.9 O ESTIMADOR É ENVIESADO, e o viés quase decidiu a física
+
+Achado de 28/08/2026, na sonda de dimensionamento. É o mais grave desde o defeito
+não-monotônico do `K`, e pelo mesmo motivo: o observável produzia um número plausível e
+sistematicamente errado.
+
+#### O que quase aconteceu
+
+`C_inter = Σ|ρ̂_ij|` medido de um ensemble finito **não converge para o valor verdadeiro pela
+média**: ele converge por cima. Medido na sonda A (γ = 0,05), em seis níveis:
+
+```
+C_inter(n) = C∞ + B·n^(-1/2)        C∞ = 10,74      B = 42,9      resíduo < 2%
+```
+
+Em `n = 400` o viés vale **2,15** sobre um valor verdadeiro de 10,74 — 20%. Os passos entre
+células vizinhas que a grade precisa resolver valem **1,21** (em `p`) e **0,98** (em `γ`).
+
+**O viés é maior que a diferença que a grade precisa resolver.** E como ele depende de σ, que
+varia com γ, ele **não cancela entre vizinhas**: deslocaria a crista em vez de apenas
+levantar o nível. O resultado teria superfície, teria crista, teria barra de erro
+respeitável, e a crista estaria no lugar errado. Nada no plano indicaria isso.
+
+#### Por que, e é garantido
+
+`|·|` é convexo. Por Jensen, `E[Σ|ρ̂_ij|] ≥ Σ|E ρ̂_ij| = Σ|ρ_ij|`: viés **positivo, sempre**.
+Nas entradas onde `ρ_ij ≈ 0` — a esmagadora maioria das `N² = 270 400` — o módulo de uma
+estimativa ruidosa tem média `σ_ij √(π/2)/√n` mesmo quando o valor verdadeiro é zero. Somado
+sobre N², domina.
+
+Não é defeito de código. É propriedade do estimador, e ela estava lá desde que o observável
+foi definido.
+
+#### O fenômeno tem nome, em três literaturas
+
+**Radioastronomia — "polarization bias".** A intensidade polarizada `√(Q²+U²)` é enviesada
+para cima pelo ruído em Q e U. O estimador de correção padrão é o de **Wardle & Kronberg
+(ApJ 194, 249, 1974)**:
+
+```
+P_corrigido = √( Q² + U² − ½(δQ² + δU²) )
+```
+
+que é exatamente *subtraia a variância do quadrado antes de tirar a raiz*.
+
+**Ressonância magnética — "viés Riciano".** `|·|` de um complexo ruidoso é Rice; em SNR baixo
+a magnitude é enviesada. Gudbjartsson & Patz, MRM 34, 910 (1995).
+
+**A ressalva que mais nos afeta: Simmons & Stewart (A&A 142, 100, 1985)** compararam os
+métodos de correção e concluíram que **todos deixam viés residual em SNR baixo** — e é
+justamente em SNR baixo que vivem quase todas as nossas N² entradas.
+
+#### E a física quântica evita o problema por construção
+
+A literatura de medidas aleatorizadas estima **pureza** e **Rényi-2**, não somas de módulos, e
+o motivo é estrutural: U-estatísticas dão estimadores **exatamente não enviesados** de
+funcionais **polinomiais** de ρ, e só deles. Nas palavras do trabalho de U-estatísticas de
+2026: *"Estimation of purities, Rényi entropies, and other polynomial spectral functionals
+instead requires products of independent shadows."*
+
+`Σ|ρ_ij|` não é polinomial. **Não existe estimador não enviesado dele a partir de amostras
+finitas.**
+
+#### A tensão é estrutural, e vale enunciá-la
+
+| medida | monótona de coerência? | polinomial? | estimador não enviesado? |
+|---|---|---|---|
+| ℓ₁ (`C_inter`) | **sim** | não | **não existe** |
+| entropia relativa (`C_rel`) | **sim** | não | não existe |
+| ℓ₂ / Hilbert–Schmidt | **não** | **sim** | sim, por U-estatística |
+
+Baumgratz, Cramer & Plenio (PRL 113, 140401, 2014) provam no Apêndice G, por contraexemplo,
+que `C_ℓ2` **não** satisfaz a monotonicidade (C2b). Trocar ℓ₁ por ℓ₂ compraria um estimador
+limpo ao preço do estatuto de recurso que a Seção 5.1 acabou de estabelecer. Não é troca boa.
+
+#### O que fazer, então
+
+1. **Manter ℓ₁ e `C_rel`** — a física decide o observável, não a conveniência estatística.
+2. **Corrigir o viés explicitamente, e declarar a correção.** A correção de ordem principal é
+   a de Wardle–Kronberg aplicada por entrada: subtrair a variância estimada de `|ρ̂_ij|²`
+   antes da raiz. Ela é a U-estatística do grau 2, custa **um acumulador real N² a mais**
+   (metade da memória de um complexo) e é exata na ordem principal — melhor que a
+   extrapolação de Richardson que a sonda usou, que dobra a variância.
+3. **Manter a extrapolação em `n` como verificação**, não como correção: pela ressalva de
+   Simmons & Stewart, sobra viés residual em SNR baixo, e a única forma de ver quanto sobrou
+   é variar `n` e olhar se o resultado corrigido é plano.
+4. **`C_rel` também é enviesado**, e mais: na mesma sonda ele derivou 132% contra os 51% do
+   `C_inter`. Estimação de entropia a partir de amostras finitas tem literatura própria
+   (Miller–Madow e sucessores) e precisa do mesmo tratamento antes de ser reportado.
+
+#### Como o achado apareceu, porque o método é replicável
+
+O desvio de `C_inter` não caía como `1/√n` (`p = 0,16`). A conclusão óbvia seria correlação
+entre trajetórias, e o suspeito seria o PRNG — a peça mais cara de auditar do projeto.
+
+O que separou as causas foi rodar o **mesmo diagnóstico sobre um estimador linear nas mesmas
+amostras**: a população de um módulo, `Σ_{i∈M} ρ_ii`, que é linear em ρ e portanto não
+enviesada por construção. Ela deu `p = 0,56`. O gerador estava bom; o problema era a
+não linearidade do `|·|`.
+
+Virou regra em `CONVENTIONS.md` 10.1.8.
+
+### 5.10 Dimensionamento da grade — sonda de 28/08/2026
+
+Nenhuma célula desta seção é resultado de física.
+
+**Anti-vacuidade, as duas.** `C_inter` varia entre as três sondas por um fator de **17 200**
+(12,14 no regime coerente, 1,18 no intermediário, 0,00071 no Zeno): o observável responde. E
+com `n_modules = 1` ele dá **zero exato**, sem erro de indexação na soma sobre `M < N`.
+
+**Custos medidos**, N = 520, 21 amostras: **25,5 ms por trajetória**; **101 MB por thread**
+(176 MB com o segundo acumulador da correção de viés). `C_rel` custava 135 s por avaliação
+com Jacobi e passou a **5,4 s** com Householder mais bissecção de Sturm — 25× — com os dois
+métodos concordando em 12 dígitos.
+
+**Passos entre células vizinhas**, com a grade de teste: `|Δ C_inter|` = 1,21 em `p` (102%) e
+0,98 em `γ` (83%). São diferenças grandes; a grade não precisa ser mais grossa por causa
+delas.
+
+**Quantas realizações.** Com o estimador corrigido (`sd` = 1,74 em n = 800) e o critério
+`sd = Δ/5`, são **~63 000 trajetórias por célula** — duas ordens de grandeza acima das 400
+que se poderia supor. Com 12 réplicas o `sd` tem ~21% de incerteza, então esse número carrega
+~40%: é ordem de grandeza, não precisão.
+
+#### A sonda D: a variação entre realizações do grafo NÃO domina
+
+A sonda principal fixa o grafo e varia só o ruído. A varredura real tem também a variação
+entre realizações da religação, e em `p` alto ela poderia dominar — o que mudaria a decisão
+de grade inteira. Medido em `p = 0,40`, γ = 0,5, com 12 réplicas em quatro níveis, cada
+réplica com **outro grafo**:
+
+| | razão de `sd` (grafo varia / grafo fixo) | fator nos `n` |
+|---|---|---|
+| `C_inter` bruto | **1,13×** | ~1,3× |
+| `C_inter` corrigido | **1,01×** | ~1,0× |
+
+O observável é uma soma global sobre 520 vértices e se auto-promedia; a religação muda ~410
+das 1024 arestas e quase não move a dispersão. **A grade escolhida continua cabendo.**
+
+#### E a sonda D mostrou um limite da correção de Richardson
+
+Em `p = 0,40` o estimador corrigido por `2C(n) − C(n/4)` **não estabiliza**: 8,07 → 3,97 →
+1,24 → 0,83 de n = 100 a 800, com `sd` de 4,3 no primeiro nível. Onde o viés é grande e o
+valor verdadeiro é pequeno, a extrapolação amplifica ruído em vez de remover viés.
+
+Isso reforça a recomendação da Seção 5.9: a correção de produção deve ser a de
+**Wardle–Kronberg por entrada** — subtrair a variância estimada de `|ρ̂_ij|²` antes da raiz,
+que é a U-estatística de grau 2 — e não a extrapolação em `n`. Richardson fica como
+*verificação*, que é o papel para o qual ele serve bem.
+
+#### Grade escolhida
+
+**7 × 7 com n = 63 000 por célula**, ~22 h de CPU, ~1,8 h em 12 núcleos. A razão não é o
+relógio: os `n` estimados são **piso**, e a grade menor entrega o plano inteiro rápido, mostra
+se a crista existe, e deixa a decisão de refinar ser tomada com informação em vez de com
+extrapolação.
+
+Descartadas: 10 × 10 com os mesmos `n` (45 h, comprometendo demais antes de saber se há
+crista) e a de tolerância afrouxada para `sd = Δ/3`, que economiza pouco e mexe justamente no
+fator que separa "há crista" de "há superfície irregular".
+
+**A varredura não está liberada.** Falta implementar a correção de Wardle–Kronberg e
+verificá-la — a Seção 5.9 explica por quê.
+
 ### 5.8 Custo computacional
 
 ~10 pontos em `p` × ~10 em `γ_deph` × ~200 realizações = **~20 000 execuções**. A contagem

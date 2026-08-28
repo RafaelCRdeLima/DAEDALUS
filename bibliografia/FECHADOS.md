@@ -9,6 +9,16 @@
 Nenhum outro download tentado falhou. Todos os 20 PDFs em `pdf/` vieram de arXiv ou de
 Frontiers, ambos acesso aberto. Não houve tentativa de contornar paywall.
 
+## Rodada 2 (viés do estimador): dois clássicos fora do arXiv
+
+| trabalho | identificador | situação |
+|---|---|---|
+| Wardle & Kronberg, ApJ 194, 249 (1974) | `10.1086/153240` | Anterior ao arXiv. O estimador de correção está reproduzido em dezenas de artigos posteriores de acesso aberto, e a fórmula está registrada em `daedalus.bib`. **Não é necessário para usar o método**, mas convém ter o original se ele for citado. |
+| Simmons & Stewart, A&A 142, 100 (1985) | ADS `1985A&A...142..100S` | Idem. A conclusão que importa — todos os métodos deixam viés residual em SNR baixo — está citada em toda a literatura de despolarização e é o ponto que mais nos afeta. |
+
+Os dois estão em ADS e devem sair pela biblioteca sem dificuldade. **Nenhum é
+paywall de editora ativa**; são artigos antigos com digitalização aberta no ADS.
+
 ## Não tentados nesta rodada — e isto é diferente de "fechados"
 
 Estão citados no documento de estado da arte e entram como CONTEXTO. Não os busquei porque

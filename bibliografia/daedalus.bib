@@ -200,3 +200,79 @@
   year    = {2026}, eprint = {2603.17629}, archivePrefix = {arXiv},
   note    = {CONTEXTO: mesma familia de modelos de decoerencia, foco em pos-selecao.}
 }
+
+% ============================================ VIÉS DO ESTIMADOR (rodada 2)
+% Revisão motivada pelo achado de 28/08/2026: C_inter = sum |rho_ij| é
+% enviesado, e o viés dominava a diferença entre células vizinhas.
+
+@article{baumgratz2014-quantifying-coherence,
+  author  = {Baumgratz, T. and Cramer, M. and Plenio, M. B.},
+  title   = {Quantifying Coherence},
+  journal = {Physical Review Letters}, volume = {113}, pages = {140401}, year = {2014},
+  doi     = {10.1103/PhysRevLett.113.140401}, eprint = {1311.0275}, archivePrefix = {arXiv},
+  note    = {FERRAMENTA, e decide uma tensao. l1 e entropia relativa SAO monotonas de
+             coerencia; o Apendice G prova por contraexemplo que C_l2 NAO satisfaz (C2b).
+             Ou seja: a medida com estatuto de recurso e nao polinomial e nao admite
+             estimador nao enviesado; a polinomial nao e monotona.}
+}
+
+@article{ustat2026-shadows-trace-polynomial,
+  author  = {Song, Xinyu and others},
+  title   = {Batched and Complete {U}-Statistics for Trace-Polynomial Estimation from
+             Classical Shadows},
+  year    = {2026}, eprint = {2608.22962}, archivePrefix = {arXiv},
+  note    = {FERRAMENTA: U-estatisticas dao estimadores NAO ENVIESADOS de funcionais
+             POLINOMIAIS de rho. "Estimation of purities, Renyi entropies, and other
+             polynomial spectral functionals instead requires products of independent
+             shadows". O metodo cobre polinomios — e nada mais.}
+}
+
+@article{elben2019-randomized-correlations,
+  author  = {Elben, A. and Vermersch, B. and Roos, C. F. and Zoller, P.},
+  title   = {Statistical correlations between locally randomized measurements: a toolbox
+             for probing entanglement in many-body quantum states},
+  year    = {2019}, eprint = {1812.02624}, archivePrefix = {arXiv},
+  note    = {CONTEXTO/FERRAMENTA: por que a literatura trabalha com pureza e Renyi-2 e
+             nao com somas de modulos — sao polinomiais.}
+}
+
+@article{brydges2019-renyi-randomized,
+  author  = {Brydges, T. and Elben, A. and Jurcevic, P. and Vermersch, B. and Maier, C.
+             and Lanyon, B. P. and Zoller, P. and Blatt, R. and Roos, C. F.},
+  title   = {Probing Renyi entanglement entropy via randomized measurements},
+  year    = {2019}, eprint = {1806.05747}, archivePrefix = {arXiv},
+  note    = {CONTEXTO: a versao experimental do mesmo argumento.}
+}
+
+@article{wardle1974-polarization-bias,
+  author  = {Wardle, J. F. C. and Kronberg, P. P.},
+  title   = {The linear polarization of quasi-stellar radio sources at 3.71 and 11.1 cm},
+  journal = {The Astrophysical Journal}, volume = {194}, pages = {249}, year = {1974},
+  doi     = {10.1086/153240},
+  note    = {FERRAMENTA, e e A CORRECAO. O "polarization bias" da radioastronomia e o
+             MESMO fenomeno: |.| de um complexo ruidoso e enviesado para cima. O
+             estimador deles, P_db = sqrt(Q^2 + U^2 - (dQ^2 + dU^2)/2), e exatamente
+             "subtraia a variancia do quadrado antes de tirar a raiz". Nao baixado:
+             ApJ 1974, ver FECHADOS.md.}
+}
+
+@article{simmons1985-debiasing-comparison,
+  author  = {Simmons, J. F. L. and Stewart, B. G.},
+  title   = {Point and interval estimation of the true unbiased degree of linear
+             polarization in the presence of low signal-to-noise ratios},
+  journal = {Astronomy \& Astrophysics}, volume = {142}, pages = {100}, year = {1985},
+  note    = {A RESSALVA QUE IMPORTA: compara os metodos de correcao e conclui que TODOS
+             deixam vies residual em SNR baixo. No nosso caso a esmagadora maioria das
+             N^2 entradas esta em SNR baixo, que e o pior regime para qualquer correcao
+             conhecida. Nao baixado, ver FECHADOS.md.}
+}
+
+@article{gudbjartsson1995-rician-mri,
+  author  = {Gudbjartsson, H. and Patz, S.},
+  title   = {The {R}ician distribution of noisy {MRI} data},
+  journal = {Magnetic Resonance in Medicine}, volume = {34}, number = {6},
+  pages = {910--914}, year = {1995}, doi = {10.1002/mrm.1910340618},
+  note    = {CONTEXTO: o mesmo vies em imagem por ressonancia, onde e chamado de vies
+             Riciano. Util porque nomeia o fenomeno numa literatura madura, com
+             estimadores e limites conhecidos.}
+}

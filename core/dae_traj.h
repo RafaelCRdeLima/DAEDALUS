@@ -72,6 +72,7 @@ typedef struct {
   double  *re, *im;      /* n_amostras * n * n, ordem linha-maior */
   int32_t  proxima;      /* indice da proxima trajetoria aceita   */
   int32_t  somadas;
+  int32_t  n_traj_alvo;  /* informativo; nao usado pelo acumulador */
 } dae_rho_acc;
 
 dae_status dae_rho_acc_init(dae_rho_acc *A, int32_t n, int32_t n_amostras);
@@ -112,6 +113,15 @@ int32_t    dae_traj_amostras(const dae_traj_cfg *cfg);
 dae_status dae_traj_ensemble(const dae_traj_cfg *cfg, uint64_t semente_base,
                              dae_cheb *W, const dae_csr *H,
                              dae_rho_acc *A, dae_traj_sink sink, void *user);
+
+/* Como `dae_traj_ensemble`, mas alimenta DOIS acumuladores: `A` recebe todas as
+ * trajetorias e `Aq` recebe as primeiras `corte`. As duas estimativas saem do
+ * MESMO fluxo de trajetorias, o que e o ponto: elas ficam correlacionadas, e a
+ * combinacao 2*C(n) - C(corte) que cancela o vies tem variancia menor do que
+ * teria com ensembles separados. */
+dae_status dae_traj_ensemble_dupla(const dae_traj_cfg *cfg, uint64_t semente_base,
+                                   dae_cheb *W, const dae_csr *H,
+                                   dae_rho_acc *A, dae_rho_acc *Aq, int32_t corte);
 
 /* Semente da trajetoria `idx`, derivada da base. Exposta porque a
  * reprodutibilidade sob OpenMP depende de cada trajetoria ter fluxo PROPRIO e

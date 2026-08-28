@@ -29,7 +29,7 @@ SUP_OBJ   := $(BUILD)/harness.o $(BUILD)/jacobi.o
 
 .PHONY: all test bench cxx-check asan ubsan tsan clean version mutants \
         dump cli wasm wasm-test wasm-bench test6 test7
-all: $(TEST_BIN) $(BUILD)/bin/bench $(BUILD)/bin/daedalus
+all: $(TEST_BIN) $(BUILD)/bin/bench $(BUILD)/bin/daedalus $(BUILD)/bin/sonda
 
 version:
 	@$(NODE) $(ROOT)/tools/hash_core.mjs
@@ -51,6 +51,9 @@ $(BUILD)/bin/bench: bench.c $(CORE_OBJ) | $(BUILD)/bin
 
 $(BUILD)/bin/dump: dump.c tests/scenarios.c $(CORE_OBJ) | $(BUILD)/bin
 	$(CC) $(CFLAGS) $^ -o $@ $(LDLIBS)
+
+$(BUILD)/bin/sonda: sonda.c tests/jacobi.c $(CORE_OBJ) | $(BUILD)/bin
+	$(CC) $(CFLAGS) -I../core -Itests $^ -o $@ -lm
 
 $(BUILD)/bin/daedalus: cli.c $(CORE_OBJ) | $(BUILD)/bin
 	$(CC) $(CFLAGS) $^ -o $@ $(LDLIBS)
