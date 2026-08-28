@@ -6,6 +6,7 @@ export const en: Catalog = {
 
   sec_gerador: () => 'Generator',
   sec_hamiltoniano: () => 'Hamiltonian',
+  sec_tempo: () => 'Time',
   sec_sitios: () => 'Sites',
   sec_exportar: () => 'Export',
   sec_varredura: () => 'Sweep',

@@ -6,7 +6,9 @@ import { empacotarLattice, sitioNoTexel } from '../nucleo/indices';
 import { gradienteCss } from '../nucleo/paleta';
 import { reimportar, type Reimportado } from '../nucleo/reimportar.ts';
 import { SeletorLingua } from './SeletorLingua';
-import { Series } from './Series';
+import { Metricas } from './Metricas';
+import { Secao } from './Secao';
+import { Series, type Serie } from './Series';
 import { Varredura, type Ponto } from './Varredura';
 
 const GERADORES = ['microtubule', 'sbm', 'path', 'cycle', 'grid2d', 'hypercube', 'complete'];
@@ -202,13 +204,39 @@ export default function App() {
     return workerRef.current;
   }, []);
 
-  /* Dois canvas, um por contexto WebGL: um mesmo elemento não hospeda dois. */
+  /* Um canvas por vez, MONTADO, não escondido com display:none.
+     Manter os dois no DOM e alternar a visibilidade parecia mais barato, e
+     custava caro: um canvas que nunca foi disposto na página não tem tamanho,
+     o contexto WebGL nasce com um buffer de outra dimensão, e o que aparece ao
+     trocar de vista é conteúdo antigo esticado. Montar só o ativo custa recriar
+     o contexto na troca — milissegundos — e elimina a classe inteira. */
   useEffect(() => {
     try {
-      if (canvasRef.current && !heatRef.current) heatRef.current = new Heatmap(canvasRef.current);
-      if (canvasNuvem.current && !nuvemRef.current) nuvemRef.current = new Nuvem(canvasNuvem.current);
+      if (vista === 'desenrolada') {
+        nuvemRef.current = null;
+        if (canvasRef.current) heatRef.current = new Heatmap(canvasRef.current);
+      } else {
+        heatRef.current = null;
+        if (canvasNuvem.current) nuvemRef.current = new Nuvem(canvasNuvem.current);
+      }
     } catch (e: any) { setErro(String(e?.message ?? e)); }
-  }, []);
+  }, [vista]);
+
+  /* REDESENHAR AO REDIMENSIONAR. O conteúdo de um canvas WebGL não se
+     re-renderiza sozinho: mudou o tamanho, o que está lá vira imagem antiga
+     esticada. Aconteceu na troca de vista — o canvas nasce com um tamanho, é
+     desenhado, e o layout o redimensiona depois — e aconteceria também ao
+     mexer na janela. */
+  useEffect(() => {
+    const alvos = [canvasRef.current, canvasNuvem.current].filter(Boolean) as HTMLCanvasElement[];
+    if (alvos.length === 0 || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => {
+      const q = quadrosRef.current[Math.min(cursor, quadrosRef.current.length - 1)];
+      if (q) desenharRef.current(q);
+    });
+    for (const a of alvos) ro.observe(a);
+    return () => ro.disconnect();
+  }, [cursor]);
 
   /* O layout espectral é pedido só quando a vista é escolhida. */
   useEffect(() => {
@@ -302,38 +330,68 @@ export default function App() {
   const desvio = Number.isFinite(norma) ? Math.abs(norma - 1) : NaN;
   const normaOk = !Number.isFinite(desvio) || desvio < 1e-9;
 
+  /* Eixo x em tempo, nao em passo: passo e detalhe da discretizacao, e comparar
+     duas corridas com grades diferentes exige a mesma abscissa fisica. */
+  const tempo = useMemo(() => {
+    if (importado?.utilizavel) {
+      const tt = importado.dados.get('t');
+      let g = 1;
+      try { g = JSON.parse(importado.meta.get('spec') ?? '{}').hamiltonian?.gamma ?? 1; } catch { g = 1; }
+      if (tt) { const v = new Float64Array(tt.length); for (let i = 0; i < tt.length; ++i) v[i] = g * tt[i]; return v; }
+      return new Float64Array(0);
+    }
+    if (!rede || total === 0) return new Float64Array(0);
+    const v = new Float64Array(total);
+    for (let i = 0; i < total; ++i) v[i] = gamma * (i + 1) * rede.dt;
+    return v;
+  }, [importado, rede, total, gamma]);
+
   const listaSeries = useMemo(() => {
     /* Reimportado tem prioridade e vem em BRONZE: o número deixou de ser
        calculado aqui, e a cor diz isso (identity/README.md). */
-    if (importado?.utilizavel) {
-      const col = (n: string) => importado.dados.get(n);
-      const s: Array<{ nome: string; cor: string; valores: Float64Array }> = [];
-      if (col('ipr')) s.push({ nome: t('se_ipr'), cor: '#B5813C', valores: col('ipr')! });
-      if (col('coh_l1')) s.push({ nome: t('se_coerencia'), cor: '#E5A83F', valores: col('coh_l1')! });
+    /* Reimportado vem em BRONZE: o numero deixou de ser calculado aqui. */
+    const bronze = !!importado?.utilizavel;
+    const cIpr = bronze ? '#B5813C' : '#E5A83F';
+    const cCoh = bronze ? '#C99A56' : '#3F7C74';
+    const out: Serie[] = [];
+    if (bronze) {
+      const col = (n: string) => importado!.dados.get(n);
+      if (col('ipr')) out.push({ nome: t('se_ipr'), cor: cIpr, valores: col('ipr')!, eixo: 'esq' });
+      if (col('coh_l1')) out.push({ nome: t('se_coerencia'), cor: cCoh, valores: col('coh_l1')!, eixo: 'dir' });
       const pa = col('p_target');
-      if (pa && Number.isFinite(pa[0])) s.push({ nome: t('se_palvo'), cor: '#A8452C', valores: pa });
-      return s;
+      if (pa && Number.isFinite(pa[0])) out.push({ nome: t('se_palvo'), cor: '#A8452C', valores: pa, eixo: 'esq' });
+      return out;
     }
-    if (!series || total === 0) return [];
+    if (!series || total === 0) return out;
     const col = (k: number) => {
       const v = new Float64Array(total);
       for (let i = 0; i < total; ++i) v[i] = series[i * 4 + k];
       return v;
     };
-    const s = [
-      { nome: t('se_ipr'), cor: '#E5A83F', valores: col(1) },
-      { nome: t('se_coerencia'), cor: '#3F7C74', valores: col(2) },
-    ];
+    out.push({ nome: t('se_ipr'), cor: cIpr, valores: col(1), eixo: 'esq' });
+    out.push({ nome: t('se_coerencia'), cor: cCoh, valores: col(2), eixo: 'dir' });
     const pa = col(3);
-    if (Number.isFinite(pa[0])) s.push({ nome: t('se_palvo'), cor: '#A8452C', valores: pa });
-    return s;
+    /* p no alvo divide o eixo esquerdo com o IPR: as duas vivem em [0,1]. */
+    if (Number.isFinite(pa[0])) out.push({ nome: t('se_palvo'), cor: '#A8452C', valores: pa, eixo: 'esq' });
+    return out;
   }, [series, total, importado, t]);
-
-  const ntSeries = importado?.utilizavel
-    ? (importado.dados.get('t')?.length ?? 0) : total;
 
   const exportar = (alvoExp: string) =>
     worker().postMessage({ tipo: 'exportar', alvo: alvoExp, spec: JSON.stringify(spec) });
+
+  const metricas = useMemo(() => {
+    if (!rede) return [];
+    return [
+      { rotulo: 'N', valor: String(rede.n) },
+      { rotulo: '|E|', valor: String(rede.arestas) },
+      { rotulo: '⟨d⟩', valor: rede.grauMedio.toFixed(3) },
+      { rotulo: 'λ₂', valor: rede.lambda2.toPrecision(5),
+        nota: rede.lambda2Convergiu ? undefined : t('r_lambda2_alto'),
+        alerta: !rede.lambda2Convergiu },
+      { rotulo: 'Q', valor: rede.Q.toFixed(4) },
+      { rotulo: 'α', valor: rede.alpha.toFixed(3) },
+    ];
+  }, [rede, t]);
 
   const faixa = (rot: string, valor: string, campo: React.ReactNode) => (
     <>
@@ -370,10 +428,11 @@ export default function App() {
           {importado?.avisos.map((a, i) => (
             <div key={i} className={a.grave ? 'erro' : 'aviso'}>{t(a.chave, a.params)}</div>
           ))}
-          <canvas ref={canvasRef} onClick={clicarLattice}
-                  style={{ display: vista === 'desenrolada' ? 'block' : 'none' }} />
-          <canvas ref={canvasNuvem} onClick={clicarNuvem}
-                  style={{ display: vista === 'desenrolada' ? 'none' : 'block' }} />
+          <div className="mapa">
+            {vista === 'desenrolada'
+              ? <canvas ref={canvasRef} onClick={clicarLattice} />
+              : <canvas ref={canvasNuvem} onClick={clicarNuvem} />}
+          </div>
           {/* O nome do layout em uso fica visível: a figura muda de significado
               conforme ele, e adivinhar qual está ativo é o começo de ler errado. */}
           <div className="vistas">
@@ -398,6 +457,7 @@ export default function App() {
             <span>|ψⱼ|²</span>
           </div>
           {vista === 'espectral' && <p className="dica">{t('v_espectral_dica')}</p>}
+          <Metricas itens={metricas} />
           <div className="transporte">
             <button onClick={() => setTocando((v) => !v)}
                     disabled={quadrosRef.current.length < 2}>{tocando ? '❚❚' : '▶'}</button>
@@ -409,7 +469,7 @@ export default function App() {
                    onChange={(e) => setEscalaFixa(e.target.checked)} /> {t('a_escala_fixa')}</label>
           </div>
           {listaSeries.length > 0 && (
-            <Series series={listaSeries} nt={ntSeries} cursor={cursor}
+            <Series series={listaSeries} tempo={tempo} cursor={cursor} rotuloX="γt"
                     aoClicar={importado?.utilizavel ? undefined : irPara} />
           )}
           {pontos.length > 0 && (
@@ -418,123 +478,130 @@ export default function App() {
         </main>
 
         <aside className="painel">
-          <h2>{t('sec_gerador')}</h2>
-          <select value={gerador} onChange={(e) => setGerador(e.target.value)}>
-            {GERADORES.map((g) => <option key={g} value={g}>{t(`ger_${g}`)}</option>)}
-          </select>
+          <Secao titulo={t('sec_gerador')} aberta
+                 resumo={`${t(`ger_${gerador}`)}${gerador === 'microtubule' ? ` ${nPar}×${nPerp}` : ` N=${nGen}`} · p=${wsP.toFixed(2)}`}>
+            <select value={gerador} onChange={(e) => setGerador(e.target.value)}>
+              {GERADORES.map((g) => <option key={g} value={g}>{t(`ger_${g}`)}</option>)}
+            </select>
 
-          {gerador === 'microtubule' && (<>
-            {faixa(t('c_npar'), String(nPar),
-              <input type="range" min={4} max={600} value={nPar} onChange={(e) => setNPar(+e.target.value)} />)}
-            {faixa(t('c_nperp'), String(nPerp),
-              <input type="range" min={3} max={26} value={nPerp} onChange={(e) => setNPerp(+e.target.value)} />)}
-            {faixa(t('c_costura'), String(seam),
-              <input type="range" min={0} max={12} value={seam} onChange={(e) => setSeam(+e.target.value)} />)}
-            <label className="caixa"><input type="checkbox" checked={fechado}
-              onChange={(e) => setFechado(e.target.checked)} /> {t('c_fechar')}</label>
-            {faixa(t('c_acoplamento'), `1.00 / ${jPerp.toFixed(2)}`,
-              <input type="range" min={0.1} max={2} step={0.05} value={jPerp}
-                     onChange={(e) => setJPerp(+e.target.value)} />)}
-          </>)}
-          {gerador === 'sbm' && (<>
-            {faixa(t('c_n'), String(nGen),
-              <input type="range" min={20} max={2000} step={10} value={nGen}
-                     onChange={(e) => setNGen(+e.target.value)} />)}
-            {faixa(t('c_pinpout'), `${pIn.toFixed(2)} / ${pOut.toFixed(3)}`, <>
-              <input type="range" min={0} max={1} step={0.01} value={pIn} onChange={(e) => setPIn(+e.target.value)} />
-              <input type="range" min={0} max={0.2} step={0.002} value={pOut} onChange={(e) => setPOut(+e.target.value)} />
+            {gerador === 'microtubule' && (<>
+              {faixa(t('c_npar'), String(nPar),
+                <input type="range" min={4} max={600} value={nPar} onChange={(e) => setNPar(+e.target.value)} />)}
+              {faixa(t('c_nperp'), String(nPerp),
+                <input type="range" min={3} max={26} value={nPerp} onChange={(e) => setNPerp(+e.target.value)} />)}
+              {faixa(t('c_costura'), String(seam),
+                <input type="range" min={0} max={12} value={seam} onChange={(e) => setSeam(+e.target.value)} />)}
+              <label className="caixa"><input type="checkbox" checked={fechado}
+                onChange={(e) => setFechado(e.target.checked)} /> {t('c_fechar')}</label>
+              {faixa(t('c_acoplamento'), `1.00 / ${jPerp.toFixed(2)}`,
+                <input type="range" min={0.1} max={2} step={0.05} value={jPerp}
+                       onChange={(e) => setJPerp(+e.target.value)} />)}
             </>)}
-          </>)}
-          {(gerador === 'path' || gerador === 'cycle' || gerador === 'complete') &&
-            faixa(t('c_n'), String(nGen),
-              <input type="range" min={4} max={2000} step={2} value={nGen}
-                     onChange={(e) => setNGen(+e.target.value)} />)}
-          {(gerador === 'microtubule' || gerador === 'sbm') &&
-            faixa(t('c_modulos'), String(modulos),
-              <input type="range" min={1} max={24} value={modulos}
-                     onChange={(e) => setModulos(+e.target.value)} />)}
+            {gerador === 'sbm' && (<>
+              {faixa(t('c_n'), String(nGen),
+                <input type="range" min={20} max={2000} step={10} value={nGen}
+                       onChange={(e) => setNGen(+e.target.value)} />)}
+              {faixa(t('c_pinpout'), `${pIn.toFixed(2)} / ${pOut.toFixed(3)}`, <>
+                <input type="range" min={0} max={1} step={0.01} value={pIn} onChange={(e) => setPIn(+e.target.value)} />
+                <input type="range" min={0} max={0.2} step={0.002} value={pOut} onChange={(e) => setPOut(+e.target.value)} />
+              </>)}
+            </>)}
+            {(gerador === 'path' || gerador === 'cycle' || gerador === 'complete') &&
+              faixa(t('c_n'), String(nGen),
+                <input type="range" min={4} max={2000} step={2} value={nGen}
+                       onChange={(e) => setNGen(+e.target.value)} />)}
+            {(gerador === 'microtubule' || gerador === 'sbm') &&
+              faixa(t('c_modulos'), String(modulos),
+                <input type="range" min={1} max={24} value={modulos}
+                       onChange={(e) => setModulos(+e.target.value)} />)}
 
-          {faixa(t('c_religacao'), wsP.toFixed(2),
-            <input type="range" min={0} max={1} step={0.01} value={wsP}
-                   onChange={(e) => setWsP(+e.target.value)} />)}
-          <label className="caixa"><input type="checkbox" checked={religar}
-            onChange={(e) => setReligar(e.target.checked)} /> {t('c_religar_fixo')}</label>
-          {!religar && <p className="aviso">{t('av_acrescentar')}</p>}
-          {faixa(t('c_semente'), String(semente),
-            <input type="number" value={semente} onChange={(e) => setSemente(+e.target.value)} />)}
-          <button className="primario" style={{ width: '100%', marginTop: 10 }}
-                  onClick={carregar}>{t('a_gerar')}</button>
+            {faixa(t('c_religacao'), wsP.toFixed(2),
+              <input type="range" min={0} max={1} step={0.01} value={wsP}
+                     onChange={(e) => setWsP(+e.target.value)} />)}
+            <label className="caixa"><input type="checkbox" checked={religar}
+              onChange={(e) => setReligar(e.target.checked)} /> {t('c_religar_fixo')}</label>
+            {!religar && <p className="aviso">{t('av_acrescentar')}</p>}
+            {faixa(t('c_semente'), String(semente),
+              <input type="number" value={semente} onChange={(e) => setSemente(+e.target.value)} />)}
+            <button className="primario larga" onClick={carregar}>{t('a_gerar')}</button>
+          </Secao>
 
-          <h2>{t('sec_hamiltoniano')}</h2>
-          <div className="segmentado">
-            <button className={ham === 'adjacency' ? 'sel' : ''}
-                    onClick={() => setHam('adjacency')}>{t('ham_adjacency')}</button>
-            <button className={ham === 'laplacian' ? 'sel' : ''}
-                    onClick={() => setHam('laplacian')}>{t('ham_laplacian')}</button>
-          </div>
-          {faixa(t('c_gamma'), gamma.toFixed(2),
-            <input type="range" min={0.05} max={4} step={0.05} value={gamma}
-                   onChange={(e) => setGamma(+e.target.value)} />)}
-          <div className="campo"><label>{t('c_normalizacao')}</label></div>
-          <select value={norm} onChange={(e) => setNorm(e.target.value)}>
-            <option value="spectral">{t('norm_spectral')}</option>
-            <option value="mean_degree">{t('norm_mean_degree')}</option>
-            <option value="none">{t('norm_none')}</option>
-          </select>
-          {norm === 'none' && <p className="aviso">{t('av_sem_normalizar')}</p>}
-          {faixa(t('c_tfinal'), t1.toFixed(1),
-            <input type="range" min={1} max={400} step={1} value={t1} onChange={(e) => setT1(+e.target.value)} />)}
-          {faixa(t('c_pontos'), String(nt),
-            <input type="range" min={20} max={2000} step={20} value={nt}
-                   onChange={(e) => setNt(+e.target.value)} />)}
-          <div className="transporte" style={{ marginTop: 10 }}>
-            <button className="primario" style={{ flex: 1 }} onClick={propagar}
-                    disabled={rodando || !rede}>{rodando ? t('a_propagando') : t('a_propagar')}</button>
-            <button onClick={() => worker().postMessage({ tipo: 'cancelar' })}
-                    disabled={!rodando && !varrendo}>{t('a_parar')}</button>
-          </div>
+          <Secao titulo={t('sec_hamiltoniano')}
+                 resumo={`${ham === 'adjacency' ? '−γA' : 'γL'} · γ=${gamma.toFixed(2)} · ${t(`norm_${norm}`)}`}>
+            <div className="segmentado">
+              <button className={ham === 'adjacency' ? 'sel' : ''}
+                      onClick={() => setHam('adjacency')}>{t('ham_adjacency')}</button>
+              <button className={ham === 'laplacian' ? 'sel' : ''}
+                      onClick={() => setHam('laplacian')}>{t('ham_laplacian')}</button>
+            </div>
+            {faixa(t('c_gamma'), gamma.toFixed(2),
+              <input type="range" min={0.05} max={4} step={0.05} value={gamma}
+                     onChange={(e) => setGamma(+e.target.value)} />)}
+            <div className="campo"><label>{t('c_normalizacao')}</label></div>
+            <select value={norm} onChange={(e) => setNorm(e.target.value)}>
+              <option value="spectral">{t('norm_spectral')}</option>
+              <option value="mean_degree">{t('norm_mean_degree')}</option>
+              <option value="none">{t('norm_none')}</option>
+            </select>
+            {norm === 'none' && <p className="aviso">{t('av_sem_normalizar')}</p>}
+          </Secao>
 
-          <h2>{t('sec_sitios')}</h2>
-          <div className="segmentado">
-            <button className={modoClique === 'inicial' ? 'sel' : ''}
-                    onClick={() => setModoClique('inicial')}>{t('s_inicial', { j: sitio })}</button>
-            <button className={modoClique === 'alvo' ? 'sel' : ''}
-                    onClick={() => setModoClique('alvo')}>{t('s_alvo', { j: alvo < 0 ? '—' : alvo })}</button>
-          </div>
-          <p className="dica">{t('s_dica')}{alvo >= 0 && <> <a href="#" style={{ color: '#8FC2E4' }}
-            onClick={(e) => { e.preventDefault(); setAlvo(-1); }}>{t('a_limpar_alvo')}</a></>}</p>
+          <Secao titulo={t('sec_tempo')} aberta
+                 resumo={`t=${t1.toFixed(0)} · ${nt} ${t('c_pontos')}`}>
+            {faixa(t('c_tfinal'), t1.toFixed(1),
+              <input type="range" min={1} max={400} step={1} value={t1} onChange={(e) => setT1(+e.target.value)} />)}
+            {faixa(t('c_pontos'), String(nt),
+              <input type="range" min={20} max={2000} step={20} value={nt}
+                     onChange={(e) => setNt(+e.target.value)} />)}
+            <div className="transporte">
+              <button className="primario" style={{ flex: 1 }} onClick={propagar}
+                      disabled={rodando || !rede}>{rodando ? t('a_propagando') : t('a_propagar')}</button>
+              <button onClick={() => worker().postMessage({ tipo: 'cancelar' })}
+                      disabled={!rodando && !varrendo}>{t('a_parar')}</button>
+            </div>
+          </Secao>
 
-          <h2>{t('sec_varredura')}</h2>
-          {faixa(t('c_passos'), String(vPassos),
-            <input type="range" min={2} max={21} value={vPassos} onChange={(e) => setVPassos(+e.target.value)} />)}
-          {faixa(t('c_realizacoes'), String(vReal),
-            <input type="range" min={1} max={16} value={vReal} onChange={(e) => setVReal(+e.target.value)} />)}
-          <button className="primario" style={{ width: '100%', marginTop: 8 }}
-                  onClick={varrer} disabled={!!varrendo || alvo < 0}>
-            {varrendo ? t('f_varrendo', { i: varrendo.i, n: varrendo.n }) : t('a_varrer')}</button>
-          <p className="dica">{t('v_dica')}</p>
+          <Secao titulo={t('sec_sitios')} resumo={`${sitio} → ${alvo < 0 ? '—' : alvo}`}>
+            <div className="segmentado">
+              <button className={modoClique === 'inicial' ? 'sel' : ''}
+                      onClick={() => setModoClique('inicial')}>{t('s_inicial', { j: sitio })}</button>
+              <button className={modoClique === 'alvo' ? 'sel' : ''}
+                      onClick={() => setModoClique('alvo')}>{t('s_alvo', { j: alvo < 0 ? '—' : alvo })}</button>
+            </div>
+            <p className="dica">{t('s_dica')}{alvo >= 0 && <> <a href="#" style={{ color: '#8FC2E4' }}
+              onClick={(e) => { e.preventDefault(); setAlvo(-1); }}>{t('a_limpar_alvo')}</a></>}</p>
+          </Secao>
+
+          <Secao titulo={t('sec_varredura')} resumo={`${vPassos} × ${vReal}`}>
+            {faixa(t('c_passos'), String(vPassos),
+              <input type="range" min={2} max={21} value={vPassos} onChange={(e) => setVPassos(+e.target.value)} />)}
+            {faixa(t('c_realizacoes'), String(vReal),
+              <input type="range" min={1} max={16} value={vReal} onChange={(e) => setVReal(+e.target.value)} />)}
+            <button className="primario larga" onClick={varrer} disabled={!!varrendo || alvo < 0}>
+              {varrendo ? t('f_varrendo', { i: varrendo.i, n: varrendo.n }) : t('a_varrer')}</button>
+            <p className="dica">{t('v_dica')}</p>
+          </Secao>
 
           {/* Bronze: tudo que sai daqui e volta de fora. Distinção funcional. */}
-          <h2>{t('sec_exportar')}</h2>
-          <div className="exportar">
-            <button onClick={() => exportar('cpp')} disabled={!rede}>C++</button>
-            <button onClick={() => exportar('wl')} disabled={!rede}>Wolfram</button>
-            <button onClick={() => exportar('py')} disabled={!rede}>Python</button>
-          </div>
-          <div className="exportar">
-            <button onClick={() => worker().postMessage({ tipo: 'csv' })}
-                    disabled={!series}>{t('a_csv')}</button>
-          </div>
-          <p className="dica">{t('av_exportar')}</p>
-
-          <h2>{t('sec_reimportar')}</h2>
-          <div className="exportar">
-            <label className="botao-arquivo">
-              {t('a_abrir_csv')}
-              <input type="file" accept=".csv,text/csv,text/plain" style={{ display: 'none' }}
-                     onChange={(e) => void abrirCsv(e.target.files?.[0])} />
-            </label>
-          </div>
+          <Secao titulo={t('sec_exportar')} resumo="C++ · Wolfram · Python · CSV">
+            <div className="exportar">
+              <button onClick={() => exportar('cpp')} disabled={!rede}>C++</button>
+              <button onClick={() => exportar('wl')} disabled={!rede}>Wolfram</button>
+              <button onClick={() => exportar('py')} disabled={!rede}>Python</button>
+            </div>
+            <div className="exportar">
+              <button onClick={() => worker().postMessage({ tipo: 'csv' })}
+                      disabled={!series}>{t('a_csv')}</button>
+            </div>
+            <p className="dica">{t('av_exportar')}</p>
+            <div className="exportar">
+              <label className="botao-arquivo">
+                {t('a_abrir_csv')}
+                <input type="file" accept=".csv,text/csv,text/plain" style={{ display: 'none' }}
+                       onChange={(e) => void abrirCsv(e.target.files?.[0])} />
+              </label>
+            </div>
+          </Secao>
         </aside>
       </div>
 
@@ -542,13 +609,6 @@ export default function App() {
         <span>{t('r_norma')} = <b>{Number.isFinite(norma) ? norma.toFixed(12) : '—'}</b>
           {Number.isFinite(desvio) && ` (Δ ${desvio.toExponential(1)})`}</span>
         {rede && <>
-          <span>{t('r_vertices', { n: rede.n })}</span>
-          <span>{t('r_arestas', { m: rede.arestas })}</span>
-          <span>{t('r_grau')} <b>{rede.grauMedio.toFixed(3)}</b></span>
-          <span>λ₂ <b>{rede.lambda2.toPrecision(5)}</b>
-            {!rede.lambda2Convergiu && <span className="alerta"> {t('r_lambda2_alto')}</span>}</span>
-          <span>Q <b>{rede.Q.toFixed(4)}</b></span>
-          <span>α <b>{rede.alpha.toFixed(3)}</b></span>
           <span>hash <b>{rede.fingerprint.toString(16).slice(0, 8)}</b></span>
           {rede.componentes > 1 && <span className="alerta">{t('r_componentes', { k: rede.componentes })}</span>}
           {rede.arestasDescartadas > 0 && <span className="alerta">{t('r_duplicadas', { k: rede.arestasDescartadas })}</span>}

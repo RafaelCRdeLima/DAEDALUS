@@ -10,6 +10,16 @@
  * significa alguma coisa. Com escala uniforme, o eixo limitante encosta na
  * margem e o outro fica centrado.
  *
+ * A rede desenrolada (src/gl/heatmap.ts) faz o oposto e estica por eixo, porque
+ * lá o plano é uma grade de ÍNDICES e distância no desenho não mede nada. A
+ * diferença entre os dois é física, não estética.
+ *
+ * O que se pode fazer sem mentir é GIRAR. Rotação é isometria: não muda
+ * distância nenhuma. Um embedding quase unidimensional — o caso de um tubo
+ * longo, onde os dois autovetores mais baixos quase se alinham — sai na
+ * diagonal e ocupa uma fração da caixa; alinhar o eixo principal da nuvem com o
+ * eixo maior do canvas usa a área toda e preserva a métrica.
+ *
  * O raio do vértice também codifica |ψ_j|², redundância deliberada para leitura
  * sem cor (identity/README.md).
  */
@@ -92,6 +102,8 @@ export class Nuvem {
   private n = 0;
   private centro: [number, number] = [0, 0];
   private meia: [number, number] = [1, 1];
+  private cosT = 1;
+  private senT = 0;
   private posicoes: Float32Array = new Float32Array(0);
 
   constructor(private canvas: HTMLCanvasElement) {
@@ -123,20 +135,56 @@ export class Nuvem {
   rede(xy: Float32Array, n: number, arestas?: Array<[number, number, number]> | null) {
     const gl = this.gl;
     this.n = n;
-    this.posicoes = xy;
 
+    /* Eixo principal da nuvem, pela covariância. Girar para alinhá-lo é a
+       única transformação que ganha área sem tocar em nenhuma distância. */
+    let mx = 0, my = 0;
+    for (let i = 0; i < n; ++i) { mx += xy[2 * i]; my += xy[2 * i + 1]; }
+    mx /= n; my /= n;
+    let cxx = 0, cyy = 0, cxy = 0;
+    for (let i = 0; i < n; ++i) {
+      const dx = xy[2 * i] - mx, dy = xy[2 * i + 1] - my;
+      cxx += dx * dx; cyy += dy * dy; cxy += dx * dy;
+    }
+    let teta = 0.5 * Math.atan2(2 * cxy, cxx - cyy);
+    /* Qual das duas orientações põe o eixo longo na horizontal é questão de
+       convenção de sinal, e convenção de sinal é o tipo de coisa que se erra em
+       silêncio. Em vez de confiar na dedução, mede-se: gira, compara as
+       extensões, e acrescenta 90° se ficou de pé. O canvas é largo. */
+    for (let tent = 0; tent < 2; ++tent) {
+      const c = Math.cos(teta), sn = Math.sin(teta);
+      let ex = 0, ey = 0;
+      let xa = Infinity, xb = -Infinity, ya = Infinity, yb = -Infinity;
+      for (let i = 0; i < n; ++i) {
+        const dx = xy[2 * i] - mx, dy = xy[2 * i + 1] - my;
+        const x = c * dx + sn * dy, y = -sn * dx + c * dy;
+        if (x < xa) xa = x; if (x > xb) xb = x;
+        if (y < ya) ya = y; if (y > yb) yb = y;
+      }
+      ex = xb - xa; ey = yb - ya;
+      if (ex >= ey) break;
+      teta += Math.PI / 2;
+    }
+    this.cosT = Math.cos(teta); this.senT = Math.sin(teta);
+
+    const girado = new Float32Array(2 * n);
     let xlo = Infinity, xhi = -Infinity, ylo = Infinity, yhi = -Infinity;
     for (let i = 0; i < n; ++i) {
-      const x = xy[2 * i], y = xy[2 * i + 1];
+      const dx = xy[2 * i] - mx, dy = xy[2 * i + 1] - my;
+      const x = this.cosT * dx + this.senT * dy;
+      const y = -this.senT * dx + this.cosT * dy;
+      girado[2 * i] = x; girado[2 * i + 1] = y;
       if (x < xlo) xlo = x; if (x > xhi) xhi = x;
       if (y < ylo) ylo = y; if (y > yhi) yhi = y;
     }
     if (!Number.isFinite(xlo)) { xlo = ylo = 0; xhi = yhi = 1; }
     this.centro = [(xlo + xhi) / 2, (ylo + yhi) / 2];
     this.meia = [Math.max((xhi - xlo) / 2, 1e-9), Math.max((yhi - ylo) / 2, 1e-9)];
+    this.posicoes = girado;
+    xy = girado;
 
     gl.bindBuffer(gl.ARRAY_BUFFER, this.bufPos);
-    gl.bufferData(gl.ARRAY_BUFFER, xy, gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, girado, gl.STATIC_DRAW);
 
     this.nAre = 0;
     if (arestas && n <= MAX_ARESTAS_DESENHADAS) {
@@ -161,7 +209,12 @@ export class Nuvem {
     }
     const L = this.canvas.width, A = this.canvas.height;
     gl.viewport(0, 0, L, A);
-    gl.clearColor(0.063, 0.102, 0.141, 1);      /* --dd-ink */
+    /* --dd-canvas, e NÃO --dd-ink: #101A24 é o extremo zero do mapa de cor, e
+       limpar o fundo com ele fazia todo vértice de população desprezível ficar
+       exatamente da cor do fundo. A rede sumia e só o pacote aparecia — o que
+       parece um layout que não preenche, quando o layout está certo. O fundo
+       precisa ser distinguível de "zero". */
+    gl.clearColor(0.043, 0.071, 0.098, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
     if (this.n === 0) return;
 
@@ -170,6 +223,7 @@ export class Nuvem {
     const margem = 18 * dpr;
     const k = Math.min((L / 2 - margem) / this.meia[0], (A / 2 - margem) / this.meia[1]);
     const escala: [number, number] = [(2 * k) / L, (2 * k) / A];
+
 
     if (this.nAre > 0) {
       gl.useProgram(this.progAre);

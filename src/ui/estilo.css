@@ -46,7 +46,10 @@ body {
 }
 .mono, .num { font-family: var(--dd-font-mono); font-variant-numeric: tabular-nums; }
 
-.app { display: flex; flex-direction: column; min-height: 100vh; }
+/* Altura travada na viewport para que os filhos flex possam ENCOLHER: sem
+   min-height:0 nos pais, um flex-item nunca fica menor que o conteúdo e o mapa
+   não preenche coisa nenhuma. */
+.app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
 /* ------------------------------------------------------------------ topo -- */
 .topo {
@@ -71,14 +74,14 @@ body {
 .espaco { flex: 1; }
 
 /* ---------------------------------------------------------------- corpo -- */
-.corpo { display: grid; grid-template-columns: minmax(0, 1fr) 268px; flex: 1; min-height: 0; }
-.palco { padding: 14px 16px; overflow-y: auto; border-right: 1px solid var(--dd-hairline);
-         display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-.palco canvas + canvas { margin-top: 0; }
-.palco canvas {
-  /* Altura limitada: a rede desenrolada e larga e baixa (160 x 13), e esticar
-     na vertical daria a impressao de uma geometria que nao existe. */
-  width: 100%; height: clamp(180px, 38vh, 460px); flex: 0 0 auto; display: block;
+.corpo { display: grid; grid-template-columns: minmax(0, 1fr) 288px; flex: 1; min-height: 0; }
+.palco { padding: 12px 14px; border-right: 1px solid var(--dd-hairline);
+         display: flex; flex-direction: column; gap: 8px; min-width: 0; min-height: 0; }
+
+/* O mapa toma a maior parte do palco; as series ficam com o resto. */
+.mapa { flex: 1 1 58%; min-height: 170px; display: flex; }
+.mapa canvas {
+  width: 100%; height: 100%; display: block;
   border: 1px solid var(--dd-hairline); border-radius: 8px;
   image-rendering: pixelated; cursor: crosshair; background: var(--dd-ink);
 }
@@ -99,12 +102,24 @@ body {
 .transporte button { min-width: 34px; }
 
 /* --------------------------------------------------------------- painel -- */
-.painel { padding: 14px; overflow-y: auto; max-height: calc(100vh - 96px); }
-.painel h2 {
-  font-size: 11px; letter-spacing: .1em; color: var(--dd-wax);
-  margin: 16px 0 6px; font-weight: 400; text-transform: uppercase;
+.painel { padding: 10px 12px; overflow-y: auto; min-height: 0; }
+
+/* ------------------------------------------------ secoes recolhiveis ---- */
+.secao { border: 1px solid var(--dd-hairline); border-radius: 8px; margin-bottom: 6px; }
+.secao .cabeca {
+  width: 100%; display: flex; align-items: baseline; gap: 8px; text-align: left;
+  background: none; border: none; border-radius: 8px; padding: 8px 10px;
 }
-.painel h2:first-child { margin-top: 0; }
+.secao .cabeca:hover { background: rgba(243, 239, 229, .04); border-color: transparent; }
+.secao .seta { color: var(--dd-wax); font-size: 10px; }
+.secao .titulo { font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+                 color: var(--dd-fg-muted); }
+.secao .resumo { margin-left: auto; font-size: 10px; color: var(--dd-wax);
+                 white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.secao.aberta { background: rgba(23, 34, 46, .5); }
+.secao.aberta .titulo { color: var(--dd-mode-lab-fg); }
+.corpo-secao { padding: 0 10px 10px; }
+button.larga { width: 100%; margin-top: 10px; }
 .campo { display: flex; justify-content: space-between; align-items: baseline; margin: 12px 0 5px; }
 .campo label { font-size: 11px; letter-spacing: .08em; color: var(--dd-wax); }
 .campo .num { font-size: 11px; color: var(--dd-fg); }
@@ -156,12 +171,41 @@ button.primario { border-color: #2C77A8; color: var(--dd-mode-lab-fg); }
 }
 
 /* --------------------------------------------------------------- séries -- */
-.series { width: 100%; height: 150px; background: var(--dd-ink);
-          border: 1px solid var(--dd-hairline); border-radius: 8px; }
+/* ------------------------------------------------------------- series --- */
+.painel-series { flex: 1 1 42%; min-height: 150px; display: flex; flex-direction: column; gap: 4px; }
+.legenda-series {
+  display: flex; gap: 16px; align-items: center; flex-wrap: wrap;
+  font-size: 11px; font-family: var(--dd-font-mono);
+}
+.legenda-series span { display: inline-flex; align-items: center; gap: 6px; }
+.legenda-series i { width: 14px; height: 2px; display: inline-block; }
+.legenda-series em { font-style: normal; opacity: .6; }
+.series {
+  flex: 1; min-height: 0; width: 100%; background: var(--dd-ink);
+  border: 1px solid var(--dd-hairline); border-radius: 8px;
+}
 .series .quadro { fill: none; stroke: var(--dd-hairline); }
-.series .cursor { stroke: #2C77A8; stroke-width: 1; opacity: .85; }
-.series .eixo, .series .legenda { fill: var(--dd-wax); font-size: 10px;
-                                  font-family: var(--dd-font-mono); }
+.series .grade { stroke: rgba(243, 239, 229, .06); stroke-width: 1;
+                 vector-effect: non-scaling-stroke; }
+.series .cursor { stroke: #2C77A8; stroke-width: 1; opacity: .85;
+                  vector-effect: non-scaling-stroke; }
+.series .marca { fill: var(--dd-wax); font-size: 11px; font-family: var(--dd-font-mono); }
+.series .rotulo { fill: var(--dd-fg-muted); font-size: 12px; font-family: var(--dd-font-mono); }
+
+/* ------------------------------------------------- painel de leitura ----
+   As metricas da rede saem do rodape e vem para junto do mapa, em corpo
+   legivel: sao os numeros que se anota a cada varredura. O rodape fica com o
+   DIAGNOSTICO (norma, procedencia), que responde outra pergunta. */
+.metricas { display: flex; gap: 22px; flex-wrap: wrap; align-items: baseline;
+            padding: 4px 2px 2px; }
+.metrica { display: flex; flex-direction: column; gap: 1px; }
+/* SEM text-transform: os rótulos são símbolos, não palavras — maiusculizar
+   transforma ⟨d⟩ em ⟨D⟩, λ₂ em Λ₂ e α em A, que são outras grandezas. */
+.metrica .rot { font-size: 10px; letter-spacing: .08em; color: var(--dd-wax); }
+.metrica .val { font-family: var(--dd-font-mono); font-size: 17px; color: var(--dd-fg);
+                font-variant-numeric: tabular-nums; line-height: 1.15; }
+.metrica .nota { font-size: 10px; color: var(--dd-icarus); }
+.metrica.alerta .val { color: var(--dd-icarus); }
 
 /* -------------------------------------------------- rodapé de procedência --
    A norma nunca sai da tela: é o único indicador que diz se o que está sendo

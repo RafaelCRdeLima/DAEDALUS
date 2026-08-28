@@ -1,5 +1,14 @@
 /* heatmap.ts — a rede desenrolada em WebGL.
  *
+ * ESCALA POR EIXO, de propósito, e a razão é física. A rede desenrolada é uma
+ * GRADE DE ÍNDICES: (m, q) são posição ao longo do eixo e número do
+ * protofilamento, e a distância no plano do desenho não corresponde a distância
+ * nenhuma — nada é medido nela. Então esticar cada eixo até encher a caixa não
+ * distorce informação, só usa o espaço.
+ *
+ * O layout espectral (src/gl/nuvem.ts) faz o oposto e mantém escala uniforme,
+ * porque ali distância É a informação: é o embedding que separa os módulos.
+ *
  * A escala de cor vem de src/nucleo/paleta.ts, a mesma que os testes verificam:
  * o shader monta a LUT a partir dela em vez de ter uma cópia própria. Um
  * colormap invertido é um dos dois jeitos de o heatmap ficar bonito e mentir; o
