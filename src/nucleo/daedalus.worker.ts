@@ -24,9 +24,13 @@ self.onmessage = async (ev: MessageEvent) => {
       case 'carregar': {
         const d = await garante();
         const rede = d.carregar(msg.spec);
+        /* Arestas só quando cabem na tela: acima de 2000 vértices elas viram
+           mancha e o custo de copiá-las não compra nada. */
+        const arestas = rede.n <= 2000 ? d.arestas() : null;
         self.postMessage({
           tipo: 'rede', rede,
           xy: d.posicoes().slice(), modulos: d.modulos().slice(),
+          arestas,
           pop: d.populacao().slice(), canonico: d.specCanonico(),
           versao: d.versao, hashNucleo: d.hashNucleo,
         });
@@ -69,6 +73,14 @@ self.onmessage = async (ev: MessageEvent) => {
                     : msg.alvo === 'wl' ? emitirWolfram(spec, grafo, canonico, quando)
                     : emitirPython(spec, grafo, canonico, quando);
         self.postMessage({ tipo: 'exportado', alvo: msg.alvo, texto });
+        break;
+      }
+      /* O layout espectral custa um Lanczos deflacionado a mais, então só é
+         calculado quando a vista é de fato pedida. */
+      case 'espectral': {
+        const d = await garante();
+        const xy = d.espectral();
+        self.postMessage({ tipo: 'espectral', xy: xy ? xy.slice() : null });
         break;
       }
       case 'validar': {

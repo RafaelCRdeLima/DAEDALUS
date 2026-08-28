@@ -37,6 +37,56 @@ static void dae_bfs(const dae_csr *A, int32_t src, int32_t *dist, int32_t *q)
   }
 }
 
+/* Vetor de Ritz do `alvo`-esimo menor autovalor da tridiagonal, projetado de
+ * volta para o espaco cheio e deflacionado do vetor constante.
+ *
+ * Existe como funcao porque o layout espectral precisa do MESMO calculo para os
+ * dois menores pares — e duplicar isso duplicaria tambem os pontos de deflacao,
+ * que sao a parte que nao pode erodir. Devolve ||x|| antes de normalizar: se
+ * cancelou tudo, o "vetor" nao e vetor.
+ */
+static double dae_ritz(const double *al, const double *be, int32_t m, int32_t alvo,
+                       double glo, double ghi, const double *V, int32_t n,
+                       double *y, double *dsc, double *x,
+                       double *theta_out, double *vazamento_out)
+{
+  double theta, xn = 0.0;
+  int32_t i;
+  int it;
+  theta = dae_tridiag_bisect(al, be, m, alvo, glo - 1.0, ghi + 1.0);
+  for (i = 0; i < m; ++i) y[i] = 1.0 / sqrt((double)m);
+  for (it = 0; it < 3; ++it) {
+    double yn = 0.0;
+    dae_tridiag_solve(al, be, m, theta - 1e-11 * (1.0 + fabs(theta)) - 1e-300, y, dsc);
+    for (i = 0; i < m; ++i) yn += y[i] * y[i];
+    yn = sqrt(yn);
+    if (!(yn > 0.0)) break;
+    for (i = 0; i < m; ++i) y[i] /= yn;
+  }
+  for (i = 0; i < n; ++i) x[i] = 0.0;
+  for (i = 0; i < m; ++i) {
+    const double *vi = V + (size_t)i * (size_t)n;
+    const double c = y[i];
+    int32_t k;
+    for (k = 0; k < n; ++k) x[k] += c * vi[k];
+  }
+  { double c = 0.0, xnp = 0.0;            /* o vetor de Ritz VIVE em 1-perp */
+    for (i = 0; i < n; ++i) c += x[i];
+    for (i = 0; i < n; ++i) xnp += x[i] * x[i];
+    xnp = sqrt(xnp);
+    if (vazamento_out) {
+      const double leak = (xnp > 0.0) ? fabs(c) / (sqrt((double)n) * xnp) : 0.0;
+      if (leak > *vazamento_out) *vazamento_out = leak;
+    }
+    c /= (double)n;
+    for (i = 0; i < n; ++i) x[i] -= c; }
+  for (i = 0; i < n; ++i) xn += x[i] * x[i];
+  xn = sqrt(xn);
+  if (xn > 0.0) for (i = 0; i < n; ++i) x[i] /= xn;
+  if (theta_out) *theta_out = theta;
+  return xn;
+}
+
 /* ------------------------------------------------------------ lambda_2 --
  *
  * DEFLACAO DO VETOR CONSTANTE, em quatro pontos. L tem 1 como autovetor de
@@ -70,7 +120,7 @@ static void dae_bfs(const dae_csr *A, int32_t src, int32_t *dist, int32_t *q)
  */
 
 static dae_status dae_fiedler(const dae_csr *L, const dae_metrics_cfg *cfg,
-                              dae_metrics *out)
+                              dae_metrics *out, int32_t nvec, double *vecs)
 {
   const int32_t n = L->n;
   int32_t mmax, m, j, i, k;
@@ -173,37 +223,10 @@ static dae_status dae_fiedler(const dae_csr *L, const dae_metrics_cfg *cfg,
     /* Avaliação de convergência: valor de Ritz mínimo por Sturm, autovetor da
        tridiagonal por iteração inversa, resíduo EXPLÍCITO em L. */
     if ((m % 5) == 0 || m == 1 || nn < 1e-13 || j + 1 == mmax) {
-      double theta, rq = 0.0, res = 0.0, xn = 0.0;
-      int it;
-      theta = dae_tridiag_bisect(al, be, m, 0, glo - 1.0, ghi + 1.0);
-      for (i = 0; i < m; ++i) y[i] = 1.0 / sqrt((double)m);
-      for (it = 0; it < 3; ++it) {
-        double yn = 0.0;
-        dae_tridiag_solve(al, be, m, theta - 1e-11 * (1.0 + fabs(theta)) - 1e-300, y, dsc);
-        for (i = 0; i < m; ++i) yn += y[i] * y[i];
-        yn = sqrt(yn);
-        if (!(yn > 0.0)) break;
-        for (i = 0; i < m; ++i) y[i] /= yn;
-      }
-      for (i = 0; i < n; ++i) x[i] = 0.0;
-      for (i = 0; i < m; ++i) {
-        const double *vi = V + (size_t)i * (size_t)n;
-        const double c = y[i];
-        int32_t t;
-        for (t = 0; t < n; ++t) x[t] += c * vi[t];
-      }
-      { double c = 0.0, xnp = 0.0, leak;       /* o vetor de Ritz VIVE em 1-perp */
-        for (i = 0; i < n; ++i) c += x[i];
-        for (i = 0; i < n; ++i) xnp += x[i] * x[i];
-        xnp = sqrt(xnp);
-        leak = (xnp > 0.0) ? fabs(c) / (sqrt((double)n) * xnp) : 0.0;
-        if (leak > out->lambda2_const_leak) out->lambda2_const_leak = leak;
-        c /= (double)n;
-        for (i = 0; i < n; ++i) x[i] -= c; }
-      for (i = 0; i < n; ++i) xn += x[i] * x[i];
-      xn = sqrt(xn);
+      double theta = 0.0, rq = 0.0, res = 0.0;
+      const double xn = dae_ritz(al, be, m, 0, glo, ghi, V, n, y, dsc, x,
+                                 &theta, &out->lambda2_const_leak);
       if (xn > 1e-8) {                        /* cancelou tudo: não é vetor */
-        for (i = 0; i < n; ++i) x[i] /= xn;
         dae_csr_spmv_real(L, x, r);
         for (i = 0; i < n; ++i) rq += x[i] * r[i];      /* quociente de Rayleigh */
         for (i = 0; i < n; ++i) { const double d = r[i] - rq * x[i]; res += d * d; }
@@ -225,8 +248,69 @@ static dae_status dae_fiedler(const dae_csr *L, const dae_metrics_cfg *cfg,
     }
   }
 
+  /* Os `nvec` menores pares de Ritz, extraidos da MESMA base — e por isso com
+     as mesmas quatro deflacoes. O layout espectral usa os dois primeiros como
+     coordenadas: no espaco ja deflacionado do vetor constante, eles sao os
+     autovetores 2 e 3 da laplaciana. */
+  if (nvec > 0 && vecs) {
+    int32_t k;
+    for (k = 0; k < nvec; ++k) {
+      double theta = 0.0;
+      if (k >= m) { for (i = 0; i < n; ++i) vecs[(size_t)k * (size_t)n + (size_t)i] = 0.0; continue; }
+      dae_ritz(al, be, m, k, glo, ghi, V, n, y, dsc, x, &theta, &out->lambda2_const_leak);
+      for (i = 0; i < n; ++i) vecs[(size_t)k * (size_t)n + (size_t)i] = x[i];
+    }
+  }
+
 done:
   free(V); free(w); free(x); free(r); free(al); free(be); free(y); free(dsc);
+  return st;
+}
+
+/* -------------------------------------------------------------- layout --
+ *
+ * Layout espectral: autovetores 2 e 3 da laplaciana como coordenadas (x, y).
+ *
+ * Nao e escolha estetica. Para grafo modular o embedding espectral SEPARA os
+ * modulos no plano, que e exatamente o que se quer enxergar; e reaproveita o
+ * maquinario que ja existe — e literalmente o vetor de Fiedler do lambda_2,
+ * mais o proximo.
+ *
+ * Alternativa descartada: ordenar os sitios por indice e dobrar em linhas. Isso
+ * desenha a ORDEM DE ROTULAGEM, nao a rede, e para SBM ou lista importada a
+ * ordem nao significa nada.
+ *
+ * As coordenadas saem CRUAS. Normalizar para a caixa do canvas e trabalho de
+ * quem desenha, que e quem sabe o tamanho da caixa.
+ */
+dae_status dae_layout_espectral(const dae_graph *G, float *xy)
+{
+  dae_csr L;
+  dae_metrics M;
+  dae_metrics_cfg cfg;
+  double *vecs;
+  int32_t i, n;
+  dae_status st;
+
+  if (!G || !xy || G->n <= 1) return DAE_ERR_PARAM;
+  n = G->n;
+  st = dae_hamiltonian(&L, &G->A, DAE_H_LAPLACIAN, 1.0, DAE_NORM_NONE, 0, NULL);
+  if (st != DAE_OK) return st;
+
+  vecs = (double *)calloc(2u * (size_t)n, sizeof(double));
+  if (!vecs) { dae_csr_free(&L); return DAE_ERR_ALLOC; }
+
+  dae_metrics_cfg_default(&cfg);
+  memset(&M, 0, sizeof(M));
+  st = dae_fiedler(&L, &cfg, &M, 2, vecs);
+  if (st == DAE_OK) {
+    for (i = 0; i < n; ++i) {
+      xy[2 * i]     = (float)vecs[i];
+      xy[2 * i + 1] = (float)vecs[(size_t)n + (size_t)i];
+    }
+  }
+  free(vecs);
+  dae_csr_free(&L);
   return st;
 }
 
@@ -336,7 +420,7 @@ dae_status dae_metrics_compute(const dae_graph *G, const dae_metrics_cfg *cfg,
     out->lambda2_converged = 1;
     out->lambda2_steps = 0;
   } else {
-    st = dae_fiedler(&L, cfg, out);
+    st = dae_fiedler(&L, cfg, out, 0, NULL);
   }
   dae_csr_free(&L);
 

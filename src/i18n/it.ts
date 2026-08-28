@@ -98,6 +98,13 @@ export const it: Catalog = {
   f_erro: () => 'errore',
   f_varrendo: (p) => `scansione ${p['i']}/${p['n']}`,
 
+  sec_vista: () => 'Vista',
+  v_desenrolada: () => 'reticolo srotolato',
+  v_espectral: () => 'disposizione spettrale',
+  v_propria: () => 'geometria del generatore',
+  v_espectral_dica: () => 'Autovettori 2 e 3 della laplaciana come coordinate. Per una rete modulare i moduli si separano nel piano.',
+  v_sem_espectral: () => 'rete troppo grande per la disposizione spettrale',
+  v_sem_arestas: () => 'archi nascosti oltre 2000 vertici',
   se_ipr: () => 'IPR',
   se_coerencia: () => 'coerenza ℓ₁',
   se_palvo: () => 'p al bersaglio',

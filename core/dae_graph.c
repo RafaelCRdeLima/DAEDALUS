@@ -179,6 +179,7 @@ static dae_status dae_graph_alloc_node_arrays(dae_graph *G, int32_t n)
   G->xy = (float *)calloc(2u * (size_t)n, sizeof(float));
   if (!G->module_of || !G->xy) return DAE_ERR_ALLOC;
   G->nmod = 1;
+  G->geom = DAE_GEOM_NENHUMA;
   return DAE_OK;
 }
 
@@ -275,6 +276,7 @@ static dae_status dae_gen_microtubule(dae_edges *E, dae_graph *G,
   G->nmod = nmod;
   G->n_par = np;
   G->n_perp = nq;
+  G->geom = DAE_GEOM_LATTICE;
 
   for (m = 0; m < np; ++m)
     for (q = 0; q < nq; ++q) {

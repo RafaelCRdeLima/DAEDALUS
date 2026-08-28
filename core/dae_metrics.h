@@ -49,6 +49,19 @@ typedef struct {
 } dae_metrics;
 
 void       dae_metrics_cfg_default(dae_metrics_cfg *c);
+
+/* Layout espectral: autovetores 2 e 3 da laplaciana como coordenadas (x, y),
+ * escritos em `xy` (2*n floats). Reaproveita o Lanczos deflacionado do
+ * lambda_2 — e literalmente o vetor de Fiedler mais o proximo.
+ *
+ * Para grafo modular o embedding SEPARA os modulos no plano. Para grafo sem
+ * estrutura ele devolve uma nuvem sem separacao, e isso e resposta, nao falha:
+ * a fixture em native/tests/t95_layout.c verifica os DOIS casos, porque uma
+ * asserção de separacao que passasse tambem no grafo homogeneo nao estaria
+ * testando nada.
+ *
+ * Coordenadas CRUAS: normalizar para a caixa do canvas e de quem desenha. */
+dae_status dae_layout_espectral(const dae_graph *G, float *xy);
 dae_status dae_metrics_compute(const dae_graph *G, const dae_metrics_cfg *cfg,
                                dae_metrics *out);
 

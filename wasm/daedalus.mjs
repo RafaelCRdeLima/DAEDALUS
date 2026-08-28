@@ -100,6 +100,9 @@ export class Daedalus {
       nmod: this.n_._dae_ws_nmod(this.s_),
       nPar: this.n_._dae_ws_npar(this.s_),
       nPerp: this.n_._dae_ws_nperp(this.s_),
+      /* 0 = sem geometria própria (SBM, hipercubo, lista importada),
+         1 = geometria própria (linha, ciclo, grade), 2 = rede desenrolada. */
+      geom: this.n_._dae_ws_geom(this.s_),
       arestasDescartadas: this.n_._dae_ws_descartadas(this.s_),
       religacoesFalhas: this.n_._dae_ws_religa_falhas(this.s_),
       /* 64 bits em dois f64 de 32: um Number não guarda 2^64 sem perder bits, e
@@ -143,6 +146,11 @@ export class Daedalus {
   /* --- leituras. Cada uma refaz a view. --- */
   populacao() { return this.f32_(this.n_._dae_ws_pop(this.s_), this.n_._dae_ws_n(this.s_)); }
   posicoes()  { return this.f32_(this.n_._dae_ws_xy(this.s_), 2 * this.n_._dae_ws_n(this.s_)); }
+  /** Layout espectral (autovetores 2 e 3 da laplaciana). null se não couber. */
+  espectral() {
+    const p = this.n_._dae_ws_espectral(this.s_);
+    return p ? this.f32_(p, 2 * this.n_._dae_ws_n(this.s_)) : null;
+  }
   modulos()   { return this.i32_(this.n_._dae_ws_modulos(this.s_), this.n_._dae_ws_n(this.s_)); }
   series()    { return this.f64_(this.n_._dae_ws_scal(this.s_), this.n_._dae_ws_nt(this.s_) * this.ncol); }
   seriesModulo() {

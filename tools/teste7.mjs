@@ -20,6 +20,11 @@ const TMP = process.env.DAE_TMP ?? '/tmp/daedalus-teste7';
 mkdirSync(TMP, { recursive: true });
 process.env.DAE_DATA = '1970-01-01T00:00:00.000Z';
 
+/* Regenera o nucleo amalgamado antes de emitir: sem isto, um core mexido e um
+   recursos.gerado.ts velho fazem o teste comparar duas versoes diferentes do
+   mesmo programa. */
+execFileSync(process.execPath, [join(RAIZ, 'tools/amalgamate.mjs'), '--ts'], { stdio: 'ignore' });
+
 const { Daedalus } = await import('../wasm/build/daedalus.mjs');
 const dae = await Daedalus.criar();
 

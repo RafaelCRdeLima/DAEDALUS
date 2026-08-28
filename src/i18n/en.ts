@@ -98,6 +98,13 @@ export const en: Catalog = {
   f_erro: () => 'error',
   f_varrendo: (p) => `sweeping ${p['i']}/${p['n']}`,
 
+  sec_vista: () => 'View',
+  v_desenrolada: () => 'unrolled lattice',
+  v_espectral: () => 'spectral layout',
+  v_propria: () => 'generator geometry',
+  v_espectral_dica: () => 'Eigenvectors 2 and 3 of the Laplacian as coordinates. For a modular network the modules separate in the plane.',
+  v_sem_espectral: () => 'network too large for the spectral layout',
+  v_sem_arestas: () => 'edges hidden above 2000 vertices',
   se_ipr: () => 'IPR',
   se_coerencia: () => 'ℓ₁ coherence',
   se_palvo: () => 'p at target',

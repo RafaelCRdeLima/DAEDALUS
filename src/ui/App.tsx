@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useT } from '../i18n/react.ts';
 import { Heatmap } from '../gl/heatmap';
-import { empacotarLattice, empacotarTira, formaDaTira, sitioNoTexel } from '../nucleo/indices';
+import { MAX_ARESTAS_DESENHADAS, Nuvem } from '../gl/nuvem';
+import { empacotarLattice, sitioNoTexel } from '../nucleo/indices';
 import { gradienteCss } from '../nucleo/paleta';
 import { reimportar, type Reimportado } from '../nucleo/reimportar.ts';
 import { SeletorLingua } from './SeletorLingua';
@@ -14,6 +15,7 @@ const TETO_QUADROS = 6_000_000;
 interface Rede {
   n: number; nnz: number; nmod: number; nPar: number; nPerp: number;
   arestasDescartadas: number; religacoesFalhas: number; fingerprint: bigint;
+  geom: number;
   escala: number; dt: number; alpha: number;
   lambda2: number; lambda2Residuo: number; lambda2Convergiu: boolean;
   Q: number; grauMedio: number; caminhoMedio: number; caminhoExato: boolean;
@@ -31,6 +33,9 @@ export default function App() {
   const t = useT();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const heatRef = useRef<Heatmap | null>(null);
+  const nuvemRef = useRef<Nuvem | null>(null);
+  const canvasNuvem = useRef<HTMLCanvasElement>(null);
+  const arestasRef = useRef<Array<[number, number, number]> | null>(null);
   const workerRef = useRef<Worker | null>(null);
   const quadrosRef = useRef<Float32Array[]>([]);
   const desenharRef = useRef<(p: Float32Array) => void>(() => {});
@@ -80,6 +85,12 @@ export default function App() {
   const [escalaFixa, setEscalaFixa] = useState(false);
   const [importado, setImportado] = useState<Reimportado | null>(null);
   const [maxQuadro, setMaxQuadro] = useState(0);
+  /* 'desenrolada' só existe quando o gerador deu a rede desenrolada; 'propria'
+     quando ele deu geometria de verdade (linha, ciclo, grade); 'espectral' vale
+     para qualquer grafo, e é o padrão de quem não tem geometria nenhuma. */
+  const [vista, setVista] = useState<'desenrolada' | 'propria' | 'espectral'>('desenrolada');
+  const [xyEspectral, setXyEspectral] = useState<Float32Array | null>(null);
+  const [xyProprio, setXyProprio] = useState<Float32Array | null>(null);
 
   /* O spec.json É a interface: a mesma moeda que o WASM lê, que o CSV carrega e
      que o .cpp exportado embute. Não existe caminho paralelo de parâmetros. */
@@ -105,32 +116,30 @@ export default function App() {
   }, [gerador, nPar, nPerp, seam, fechado, jPerp, modulos, wsP, religar, semente,
       pIn, pOut, nGen, ham, gamma, norm, t1, nt, sitio, alvo]);
 
-  const forma = useMemo(() => {
-    if (!rede) return { largura: 1, altura: 1, ehLattice: false };
-    if (rede.nPerp > 0) return { largura: rede.nPar, altura: rede.nPerp, ehLattice: true };
-    const s = formaDaTira(rede.n);
-    return { largura: s.largura, altura: s.altura, ehLattice: false };
-  }, [rede]);
+  const forma = useMemo(() => ({
+    largura: rede?.nPar || 1, altura: rede?.nPerp || 1,
+  }), [rede]);
+  const xyVista = vista === 'espectral' ? xyEspectral : xyProprio;
 
   const desenhar = useCallback((pop: Float32Array) => {
-    const h = heatRef.current;
-    if (!h || !rede) return;
-    const tex = forma.ehLattice ? empacotarLattice(pop, forma.largura, forma.altura)
-                                : empacotarTira(pop, forma.largura, forma.altura);
+    if (!rede) return;
     let max = 0;
-    for (let i = 0; i < tex.length; ++i) if (tex[i] > max) max = tex[i];
+    for (let i = 0; i < pop.length; ++i) if (pop[i] > max) max = pop[i];
     const usado = escalaFixa ? Math.min(1, 8 / rede.n) : max;
     setMaxQuadro(usado);
-    h.desenhar(tex, forma.largura, forma.altura, usado);
-  }, [forma, rede, escalaFixa]);
+    if (vista === 'desenrolada') {
+      const h = heatRef.current;
+      if (!h) return;
+      h.desenhar(empacotarLattice(pop, forma.largura, forma.altura),
+                 forma.largura, forma.altura, usado);
+    } else {
+      const nu = nuvemRef.current;
+      if (!nu || !xyVista) return;
+      nu.desenhar(pop, usado);
+    }
+  }, [forma, rede, escalaFixa, vista, xyVista]);
   desenharRef.current = desenhar;
 
-  useEffect(() => {
-    if (canvasRef.current && !heatRef.current) {
-      try { heatRef.current = new Heatmap(canvasRef.current); }
-      catch (e: any) { setErro(String(e?.message ?? e)); }
-    }
-  }, []);
 
   const worker = useCallback(() => {
     if (!workerRef.current) {
@@ -150,6 +159,13 @@ export default function App() {
           setSeries(null); setCursor(0); setTotal(m.rede.nt);
           quadrosRef.current = [m.pop];
           setTemScrub(m.rede.nt * m.rede.n <= TETO_QUADROS);
+          arestasRef.current = m.arestas ?? null;
+          setXyProprio(m.xy);
+          setXyEspectral(null);
+          /* rede desenrolada é o padrão quando existe; layout espectral quando
+             o gerador não sabe dar geometria nenhuma. */
+          setVista(m.rede.geom === 2 ? 'desenrolada'
+                 : m.rede.geom === 1 ? 'propria' : 'espectral');
           setErro(null); setFase('f_pronta');
           if (primeira.current) { primeira.current = false; setAutoPropagar(true); }
         } else if (m.tipo === 'quadro') {
@@ -170,6 +186,8 @@ export default function App() {
           setPontos(m.pontos); setVarrendo({ i: m.i, n: m.total });
         } else if (m.tipo === 'varredura_fim') {
           setPontos(m.pontos); setVarrendo(null); setFase('f_pronto');
+        } else if (m.tipo === 'espectral') {
+          setXyEspectral(m.xy);
         } else if (m.tipo === 'validado') {
           /* O spec do CSV passou (ou não) pelo parser estrito em C. */
           const pend = pendenteCsv.current;
@@ -183,6 +201,29 @@ export default function App() {
     }
     return workerRef.current;
   }, []);
+
+  /* Dois canvas, um por contexto WebGL: um mesmo elemento não hospeda dois. */
+  useEffect(() => {
+    try {
+      if (canvasRef.current && !heatRef.current) heatRef.current = new Heatmap(canvasRef.current);
+      if (canvasNuvem.current && !nuvemRef.current) nuvemRef.current = new Nuvem(canvasNuvem.current);
+    } catch (e: any) { setErro(String(e?.message ?? e)); }
+  }, []);
+
+  /* O layout espectral é pedido só quando a vista é escolhida. */
+  useEffect(() => {
+    if (vista === 'espectral' && !xyEspectral && rede) {
+      worker().postMessage({ tipo: 'espectral' });
+    }
+  }, [vista, xyEspectral, rede, worker]);
+
+  useEffect(() => {
+    if (vista === 'desenrolada' || !nuvemRef.current || !xyVista || !rede) return;
+    nuvemRef.current.rede(xyVista, rede.n, arestasRef.current);
+    const q = quadrosRef.current[Math.min(cursor, quadrosRef.current.length - 1)];
+    if (q) desenharRef.current(q);
+    /* eslint-disable-next-line */
+  }, [vista, xyVista, rede]);
 
   const carregar = () => {
     setErro(null); setFase('f_gerando'); setImportado(null);
@@ -225,15 +266,18 @@ export default function App() {
     if (q) desenharRef.current(q);
   };
 
-  const clicarCanvas = (ev: React.MouseEvent<HTMLCanvasElement>) => {
+  const marcar = (j: number) => {
+    if (j < 0 || !rede || j >= rede.n) return;
+    if (modoClique === 'inicial') setSitio(j); else setAlvo(j);
+  };
+  const clicarLattice = (ev: React.MouseEvent<HTMLCanvasElement>) => {
     const h = heatRef.current;
     if (!h || !rede) return;
     const p = h.texelDoEvento(ev);
-    if (!p) return;
-    const j = forma.ehLattice ? sitioNoTexel(p.m, p.q, forma.largura, forma.altura)
-                              : p.q * forma.largura + p.m;
-    if (j < 0 || j >= rede.n) return;
-    if (modoClique === 'inicial') setSitio(j); else setAlvo(j);
+    if (p) marcar(sitioNoTexel(p.m, p.q, forma.largura, forma.altura));
+  };
+  const clicarNuvem = (ev: React.MouseEvent<HTMLCanvasElement>) => {
+    if (nuvemRef.current) marcar(nuvemRef.current.sitioNoEvento(ev));
   };
 
   /* A reimportação é a única entrada que não nasce aqui: o spec embutido no CSV
@@ -326,14 +370,34 @@ export default function App() {
           {importado?.avisos.map((a, i) => (
             <div key={i} className={a.grave ? 'erro' : 'aviso'}>{t(a.chave, a.params)}</div>
           ))}
-          <canvas ref={canvasRef} onClick={clicarCanvas} />
+          <canvas ref={canvasRef} onClick={clicarLattice}
+                  style={{ display: vista === 'desenrolada' ? 'block' : 'none' }} />
+          <canvas ref={canvasNuvem} onClick={clicarNuvem}
+                  style={{ display: vista === 'desenrolada' ? 'none' : 'block' }} />
+          {/* O nome do layout em uso fica visível: a figura muda de significado
+              conforme ele, e adivinhar qual está ativo é o começo de ler errado. */}
+          <div className="vistas">
+            {rede?.geom === 2 && (
+              <button className={vista === 'desenrolada' ? 'sel' : ''}
+                      onClick={() => setVista('desenrolada')}>{t('v_desenrolada')}</button>)}
+            {rede && rede.geom === 1 && (
+              <button className={vista === 'propria' ? 'sel' : ''}
+                      onClick={() => setVista('propria')}>{t('v_propria')}</button>)}
+            <button className={vista === 'espectral' ? 'sel' : ''}
+                    onClick={() => setVista('espectral')}>{t('v_espectral')}</button>
+            <span className="espaco" />
+            {vista === 'espectral' && rede && rede.n > MAX_ARESTAS_DESENHADAS &&
+              <span className="dica">{t('v_sem_arestas')}</span>}
+            {vista === 'espectral' && !xyEspectral && rede && rede.n > 20000 &&
+              <span className="aviso">{t('v_sem_espectral')}</span>}
+          </div>
           <div className="escala">
             <span>0.00</span>
             <div className="rampa" style={{ background: gradienteCss() }} />
             <span>{maxQuadro ? maxQuadro.toPrecision(3) : '—'}</span>
             <span>|ψⱼ|²</span>
           </div>
-          {!forma.ehLattice && rede && <p className="dica">{t('av_nao_lattice')}</p>}
+          {vista === 'espectral' && <p className="dica">{t('v_espectral_dica')}</p>}
           <div className="transporte">
             <button onClick={() => setTocando((v) => !v)}
                     disabled={quadrosRef.current.length < 2}>{tocando ? '❚❚' : '▶'}</button>

@@ -74,6 +74,7 @@ body {
 .corpo { display: grid; grid-template-columns: minmax(0, 1fr) 268px; flex: 1; min-height: 0; }
 .palco { padding: 14px 16px; overflow-y: auto; border-right: 1px solid var(--dd-hairline);
          display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.palco canvas + canvas { margin-top: 0; }
 .palco canvas {
   /* Altura limitada: a rede desenrolada e larga e baixa (160 x 13), e esticar
      na vertical daria a impressao de uma geometria que nao existe. */
@@ -81,6 +82,14 @@ body {
   border: 1px solid var(--dd-hairline); border-radius: 8px;
   image-rendering: pixelated; cursor: crosshair; background: var(--dd-ink);
 }
+.vistas { display: flex; align-items: center; gap: 8px; }
+.vistas button {
+  font-size: 11px; padding: 4px 10px; font-family: var(--dd-font-mono);
+  color: var(--dd-fg-muted);
+}
+.vistas button.sel { border-color: #2C77A8; color: var(--dd-mode-lab-fg); background: rgba(23,85,124,.25); }
+.vistas .dica, .vistas .aviso { margin: 0; border: none; padding: 0; font-size: 10px; }
+
 .escala { display: flex; align-items: center; gap: 10px; }
 .escala .rampa { flex: 1; height: 10px; border-radius: 5px; }
 .escala span { font-family: var(--dd-font-mono); font-size: 10px; color: var(--dd-wax); }

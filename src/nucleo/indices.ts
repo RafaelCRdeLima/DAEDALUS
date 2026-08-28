@@ -5,6 +5,12 @@
  * um off-by-one na coluna, é indistinguível de física interessante para quem
  * está olhando — e vira figura de artigo.
  *
+ * Grafo SEM rede desenrolada não entra aqui: ele vai para o layout espectral
+ * (dae_layout_espectral). Houve uma "tira por ordem de índice" neste arquivo,
+ * e ela foi removida — desenhar os sítios na ordem em que foram rotulados
+ * desenha a ROTULAGEM, não a rede, e para SBM ou lista importada a ordem não
+ * significa nada.
+ *
  * Por isso a transposição mora aqui, sozinha, exportada, e é o alvo direto de
  * src/nucleo/indices.test.ts: as fixtures de simetria e o instantâneo
  * congelado atacam ESTA função, não o pixel na tela.
@@ -28,23 +34,6 @@ export function empacotarLattice(
   for (let q = 0; q < nPerp; ++q) {
     for (let m = 0; m < nPar; ++m) out[q * nPar + m] = pop[m * nPerp + q];
   }
-  return out;
-}
-
-/** Grafo sem rede desenrolada (SBM, hipercubo, grafo importado): a tira mostra
- *  os sítios em ORDEM DE ÍNDICE, dobrada em linhas. Não é layout do grafo e a
- *  interface diz isso — fingir que é geometria seria a mesma mentira. */
-export function formaDaTira(n: number): { largura: number; altura: number } {
-  const largura = Math.max(1, Math.ceil(Math.sqrt(n * 2)));
-  return { largura, altura: Math.ceil(n / largura) };
-}
-
-export function empacotarTira(
-  pop: Float32Array, largura: number, altura: number, destino?: Float32Array,
-): Float32Array {
-  const out = destino ?? new Float32Array(largura * altura);
-  out.fill(-1); /* fora do grafo: o shader pinta como vazio, não como zero */
-  for (let i = 0; i < pop.length && i < out.length; ++i) out[i] = pop[i];
   return out;
 }
 

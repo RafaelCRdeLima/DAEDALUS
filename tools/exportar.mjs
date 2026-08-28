@@ -17,9 +17,21 @@ if (!caminhoSpec || !alvo || !saida) {
 
 const { Daedalus } = await import('../wasm/build/daedalus.mjs');
 const { emitirCpp, emitirPython, emitirWolfram } = await import('../src/export/emissor.ts');
+const { HASH_NUCLEO } = await import('../src/export/recursos.gerado.ts');
 
 const texto = readFileSync(caminhoSpec, 'utf8');
 const d = await Daedalus.criar();
+
+/* O .cpp exportado embute o nucleo AMALGAMADO, que vem de recursos.gerado.ts.
+ * Se ele estiver defasado do nucleo que o WASM esta rodando, o arquivo emitido
+ * resolve um problema parecido com outro codigo — e o teste 7 acusaria isso como
+ * "os numeros nao batem", que e o diagnostico errado. Falha alto e diz o que
+ * fazer. */
+if (HASH_NUCLEO !== d.hashNucleo) {
+  console.error(`  recursos.gerado.ts tem o nucleo ${HASH_NUCLEO}, o WASM esta rodando ` +
+                `o ${d.hashNucleo}.\n  regenere:  npm run recursos`);
+  process.exit(3);
+}
 const rede = d.carregar(texto);
 const canonico = d.specCanonico();
 const spec = JSON.parse(texto);

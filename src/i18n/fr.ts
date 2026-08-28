@@ -98,6 +98,13 @@ export const fr: Catalog = {
   f_erro: () => 'erreur',
   f_varrendo: (p) => `balayage ${p['i']}/${p['n']}`,
 
+  sec_vista: () => 'Vue',
+  v_desenrolada: () => 'réseau déroulé',
+  v_espectral: () => 'disposition spectrale',
+  v_propria: () => 'géométrie du générateur',
+  v_espectral_dica: () => 'Vecteurs propres 2 et 3 du laplacien comme coordonnées. Pour un réseau modulaire, les modules se séparent dans le plan.',
+  v_sem_espectral: () => 'réseau trop grand pour la disposition spectrale',
+  v_sem_arestas: () => 'arêtes masquées au-delà de 2000 sommets',
   se_ipr: () => 'IPR',
   se_coerencia: () => 'cohérence ℓ₁',
   se_palvo: () => 'p à la cible',

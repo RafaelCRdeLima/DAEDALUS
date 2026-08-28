@@ -409,6 +409,36 @@ rearranjo simétrico) e depois estatística circular no eixo `q`, correta e aind
 assim cega, porque a costura ACOPLA `m` e `q` e marginalizar sobre `m` destrói
 exatamente a informação que ela cria.
 
+### 10.2.5 Layout: desenhar a rede, não a rotulagem
+
+Grafo sem geometria própria — SBM, hipercubo, `K_N`, lista importada — não tem
+coordenada nenhuma que o gerador saiba dar. A primeira versão desenhava os
+sítios **em ordem de índice**, dobrados em linhas. Isso desenha a ORDEM DE
+ROTULAGEM, não a rede: para um SBM a numeração é arbitrária, e a figura
+resultante não diz nada sobre topologia enquanto parece que diz.
+
+O recurso é o **layout espectral**: autovetores 2 e 3 da laplaciana como
+coordenadas `(x, y)`. Ele reaproveita o Lanczos deflacionado do `λ₂` — é
+literalmente o vetor de Fiedler que já se calcula, mais o próximo — e, para
+rede modular, separa os módulos no plano, que é o que se quer enxergar.
+
+`dae_graph.geom` diz o que o gerador soube dar: rede desenrolada (microtúbulo),
+geometria própria (linha, ciclo, grade) ou nenhuma. O padrão da vista sai daí,
+e **o nome do layout em uso fica visível na interface** — a figura muda de
+significado conforme ele, e adivinhar qual está ativo é o começo de ler errado.
+
+A fixture (`t95_layout.c`) mede a razão entre a distância média ENTRE módulos e
+DENTRO de um módulo. Com `p_in = 0.35`, `p_out = 0.004`: **20,5**. A companheira
+usa `p_in = p_out`, onde não existe módulo — a partição continua rotulando os
+vértices, mas não corresponde a estrutura nenhuma — e ali a razão tem de ser
+**0,996**. Sem esse par, a asserção de separação estaria medindo a numeração
+dos vértices, não a topologia.
+
+Normalização para a caixa do canvas: margem fixa em pixels e escala
+**uniforme** nos dois eixos. Esticar `x` e `y` de forma independente encheria a
+caixa por completo, mas faria a distância no plano mentir — e o ponto do
+embedding é justamente que distância ali significa alguma coisa.
+
 ### 10.3 A norma fica na tela, sempre
 
 O diagnóstico de norma não mora num painel de depuração: fica no rodapé,

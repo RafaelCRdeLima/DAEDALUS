@@ -28,6 +28,8 @@ typedef enum {
   DAE_G_EDGELIST
 } dae_gen_kind;
 
+enum { DAE_GEOM_NENHUMA = 0, DAE_GEOM_PROPRIA = 1, DAE_GEOM_LATTICE = 2 };
+
 typedef enum {
   DAE_REWIRE = 0,   /* padrão: |E| constante */
   DAE_ADD    = 1    /* acrescenta: |E| cresce — a interface avisa */
@@ -65,6 +67,14 @@ typedef struct {
   int32_t *module_of;   /* n */
   float   *xy;          /* 2n, rede desenrolada — só para a interface */
   int32_t  n_par, n_perp;
+  /* Que tipo de geometria o gerador soube dar:
+       DAE_GEOM_NENHUMA — xy e arbitrario (circulo de conveniencia). E o caso
+                          de SBM, hipercubo, K_N e lista importada: ali a ordem
+                          dos indices nao significa nada, e desenhar por indice
+                          desenharia a ROTULAGEM, nao a rede.
+       DAE_GEOM_PROPRIA — linha, ciclo, grade: xy e a geometria de verdade.
+       DAE_GEOM_LATTICE — microtubulo: xy = (m, q), a rede desenrolada. */
+  int32_t  geom;
   int32_t  n_dropped;        /* arestas duplicadas descartadas na montagem  */
   int32_t  n_rewire_failed;  /* religações que não acharam destino livre em
                                 100 tentativas; a aresta original ficou. Sai

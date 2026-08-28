@@ -34,6 +34,7 @@ typedef struct {
   dae_series   R;          /* mesmo tipo do nucleo: dae_csv escreve direto dele */
   double      *psire, *psiim;
   float       *popf;       /* n: f32, so para a textura WebGL */
+  float       *xy_esp;     /* layout espectral, calculado sob demanda */
   char        *texto;      /* buffer de saida para spec canonico e CSV */
   int32_t      texto_cap;
   int32_t      cursor;
@@ -57,8 +58,8 @@ static void solta_prop(dae_sessao *s)
   dae_cheb_free(&s->W);
   dae_csr_free(&s->H);
   dae_series_free(&s->R);
-  free(s->psire); free(s->psiim); free(s->popf);
-  s->psire = NULL; s->psiim = NULL; s->popf = NULL;
+  free(s->psire); free(s->psiim); free(s->popf); free(s->xy_esp);
+  s->psire = NULL; s->psiim = NULL; s->popf = NULL; s->xy_esp = NULL;
   s->tem_prop = 0;
 }
 
@@ -255,6 +256,25 @@ DAE_EXPORT const char *dae_ws_erro_texto(int32_t c)   { return dae_strerror((dae
 DAE_EXPORT int32_t dae_ws_n(const dae_sessao *s)      { return (s && s->tem_grafo) ? s->G.n : 0; }
 DAE_EXPORT int32_t dae_ws_nnz(const dae_sessao *s)    { return (s && s->tem_grafo) ? s->G.A.nnz : 0; }
 DAE_EXPORT int32_t dae_ws_nmod(const dae_sessao *s)   { return (s && s->tem_grafo) ? s->G.nmod : 0; }
+DAE_EXPORT int32_t dae_ws_geom(const dae_sessao *s)
+{ return (s && s->tem_grafo) ? s->G.geom : 0; }
+
+/* Layout espectral, calculado SOB DEMANDA: e um Lanczos deflacionado a mais, e
+ * so faz sentido pagar por ele quando a vista espectral for de fato pedida.
+ * Devolve 0 se nao deu (grafo grande demais, ou falha). */
+DAE_EXPORT const float *dae_ws_espectral(dae_sessao *s)
+{
+  if (!s || !s->tem_grafo) return 0;
+  if (s->xy_esp) return s->xy_esp;
+  if (s->G.n < 2 || s->G.n > 20000) return 0;
+  s->xy_esp = (float *)calloc(2u * (size_t)s->G.n, sizeof(float));
+  if (!s->xy_esp) return 0;
+  if (dae_layout_espectral(&s->G, s->xy_esp) != DAE_OK) {
+    free(s->xy_esp); s->xy_esp = 0; return 0;
+  }
+  return s->xy_esp;
+}
+
 DAE_EXPORT int32_t dae_ws_npar(const dae_sessao *s)   { return (s && s->tem_grafo) ? s->G.n_par : 0; }
 DAE_EXPORT int32_t dae_ws_nperp(const dae_sessao *s)  { return (s && s->tem_grafo) ? s->G.n_perp : 0; }
 DAE_EXPORT int32_t dae_ws_descartadas(const dae_sessao *s) { return (s && s->tem_grafo) ? s->G.n_dropped : 0; }
