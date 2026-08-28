@@ -5,7 +5,7 @@ import { MAX_ARESTAS_DESENHADAS, Nuvem } from '../gl/nuvem';
 import { empacotarLattice, sitioNoTexel } from '../nucleo/indices';
 import { gradienteCss } from '../nucleo/paleta';
 import { bytesDosQuadros, passoParaCaber, passosDosQuadros, quadroDoPasso } from '../nucleo/quadros.ts';
-import { reimportar, type Reimportado } from '../nucleo/reimportar.ts';
+import { origemImplementacao, reimportar, type Reimportado } from '../nucleo/reimportar.ts';
 import { SeletorLingua } from './SeletorLingua';
 import { Metricas } from './Metricas';
 import { Secao } from './Secao';
@@ -34,6 +34,15 @@ function baixar(nome: string, texto: string) {
 
 export default function App() {
   const t = useT();
+  /* A classificacao mora em reimportar.ts e tem teste proprio; aqui so o
+     rotulo. As chaves ficam como literais para o teste de paridade do catalogo
+     enxerga-las na varredura por t('...'). */
+  const rotuloOrigem = (v: string | undefined): string => {
+    const o = origemImplementacao(v);
+    return o.tipo === 'c' ? t('impl_c')
+         : o.tipo === 'wolfram' ? t('impl_wolfram')
+         : o.tipo === 'literal' ? o.literal : t('impl_desconhecida');
+  };
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const heatRef = useRef<Heatmap | null>(null);
   const nuvemRef = useRef<Nuvem | null>(null);
@@ -212,8 +221,12 @@ export default function App() {
             setDiagQuadros(tem === m.previstos ? null : { tem, esperado: m.previstos });
           }
         } else if (m.tipo === 'exportado') {
-          baixar(m.alvo === 'cpp' ? 'daedalus_run.cpp'
-               : m.alvo === 'wl' ? 'daedalus_oraculo.wl' : 'daedalus_oraculo.py', m.texto);
+          /* Espacados: o navegador trata um lote simultaneo de downloads como
+             suspeito e engole os seguintes em silencio. O Wolfram sai em tres
+             arquivos, e dois deles sumirem sem aviso seria o pior modo de
+             falhar — o usuario ficaria com um pacote que nao roda. */
+          (m.arquivos as Array<{ nome: string; texto: string }>).forEach((a, i) =>
+            setTimeout(() => baixar(a.nome, a.texto), i * 250));
         } else if (m.tipo === 'csv') {
           baixar('daedalus.csv', m.texto);
         } else if (m.tipo === 'varredura_passo') {
@@ -450,9 +463,15 @@ export default function App() {
                 strokeLinecap="square" strokeLinejoin="miter" />
         </svg>
         <span className="nome">DAEDALUS</span>
-        {/* Azul Egeu: calculado aqui, agora. Bronze: veio de fora. */}
+        {/* Azul Egeu: calculado aqui, agora. Bronze: veio de fora.
+            E QUEM calculou, que e outra pergunta: o mesmo core_hash pode ter
+            produzido o numero pelo nucleo em C ou pelo pacote Wolfram, que usa
+            outro metodo. Um resultado vindo do Wolfram nao deve se passar por
+            um do nucleo, e um CSV que nao declara origem tambem nao. */}
         <span className={importado?.utilizavel ? 'selo exportado' : 'selo'}>
-          {importado?.utilizavel ? t('modo_reimportado') : t('modo_local')}
+          {importado?.utilizavel
+            ? `${t('modo_reimportado')} · ${rotuloOrigem(importado.meta.get('implementacao'))}`
+            : t('modo_local')}
         </span>
         <span className="espaco" />
         <span className="arquivo mono">

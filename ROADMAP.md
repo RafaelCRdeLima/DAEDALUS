@@ -141,10 +141,10 @@ ponte WASM: o vetor de parâmetros provisório da etapa 3 foi removido.
   grafo a partir da semente. É isso que faz dele um teste do EMISSOR: parâmetro
   serializado errado muda o grafo, e a impressão digital diverge antes de
   qualquer observável.
-- **`.wl` e `.py`** RECEBEM a lista de arestas explícita. Reimplementar o
-  gerador em Wolfram criaria uma segunda implementação do que a amalgamação
-  mantém única, e um oráculo que reproduz o mesmo engano do gerador não é
-  oráculo. Em troca, o alcance deles é o propagador e a grade de tempo.
+- **`.py`** RECEBE a lista de arestas explícita. Reimplementar o gerador em
+  Python criaria uma segunda implementação do que a amalgamação mantém única.
+  Em troca, o alcance dele é o propagador e a grade de tempo.
+- **Wolfram** saiu do papel de oráculo e virou **pacote autônomo** — ver abaixo.
 
 **Teste 7**: navegador (WASM) × nativo × `.cpp` exportado, mesmo `spec.json`,
 9 casos — **todos bit a bit idênticos**. A impressão digital do grafo é a
@@ -161,6 +161,70 @@ devolve o tamanho **pretendido**, não o escrito, e copiar esse número de um
 buffer truncado é leitura fora de limite. O lixo continha um NUL, o `fwrite`
 com `strlen` cortava o CSV logo depois do cabeçalho, e o comparador via "sem
 tabela" em vez de "arquivo truncado".
+
+#### O pacote Wolfram — `templates/wolfram/`
+
+O alvo Wolfram mudou de natureza durante a etapa: de oráculo mínimo para
+**programa de produção**, porque quem vai recebê-lo é um colaborador de
+Mathematica que vai **ler e modificar** o código. LibraryLink foi descartado —
+biblioteca compilada é caixa-preta, o oposto de inspeção.
+
+Isso muda o que a concordância prova. Entre `.cpp`, WASM e nativo ela é
+**estrutural**: mesmo texto, três compiladores. Aqui ela passa a ser
+**empírica**: dois métodos, mesmo resultado. Para valer alguma coisa, o método
+tem de ser deliberadamente diferente — o núcleo propaga por Chebyshev, o pacote
+por decomposição espectral (`Eigensystem`) e Krylov (`MatrixExp[-I H t, ψ]`).
+**Não há Chebyshev no pacote, de propósito.**
+
+Três arquivos na exportação: `Daedalus.wl` verbatim (é o que foi verificado; um
+pacote montado por template seria outro programa), `DaedalusDemo.nb` e o
+`daedalus_spec.json` do usuário ao lado — o pacote gera a rede a partir dos
+**parâmetros**, não de uma lista de arestas, porque um gerador é para ser mexido
+e uma lista pronta é dado.
+
+O CSV ganhou `#! implementacao` (`c` ou `wolfram`) e `#! rewire_failed`. O
+primeiro responde QUEM calculou, que o `core_hash` não responde; a interface
+exibe a origem no selo, e CSV sem o campo aparece como "origem não declarada",
+nunca como "núcleo".
+
+Símbolos públicos em **português** — exceção registrada em CONVENTIONS.md 11.1
+**com a razão escrita**, porque exceção sem razão vira precedente.
+
+##### Registro da verificação manual
+
+A CI não tem Mathematica; este portão é manual e por isso se registra. Protocolo
+e tolerâncias em CONVENTIONS.md 12.1.
+
+| data | core_hash | resultado |
+|---|---|---|
+| 2026-08-28 | `9cbcc100c8b73b07` | **12/12 OK.** PRNG idêntico (3 sementes × 100 valores). 12 digitais idênticas. `rewire_failed` bate, inclusive os 30 de `completo-religado`. Pior absoluto 9.4e-12, relativo 9.6e-11, amplitude 1.5e-14. Anti-vacuidade 7/7 detectou. |
+
+O pior caso de amplitude é a **grade 2D** (n = 240), como se esperava de
+espectro degenerado — κ(V) maior, mais cancelamento na soma espectral.
+
+Dois achados que valem registro:
+
+- **O erro relativo puro não serve como critério.** Em t = 0 o núcleo escreve
+  `p_alvo = 0` **exato** — Chebyshev em α = 0 dá J₀(0) = 1 e J_k(0) = 0, ou seja
+  a identidade sem arredondamento — e a soma espectral devolve 3e-32. Erro
+  relativo 1, o pior possível, para trinta e duas casas de concordância. A lei é
+  ~2δ/√p com δ ≈ 1e-15 na amplitude, e ela explica cinco ordens de grandeza de
+  erro relativo com uma única concordância. Daí as três medidas separadas.
+- **Onde os dois mais discordam, é a evidência funcionando.** O maior desvio de
+  amplitude do conjunto está em `linha`, sítio j = 250, a 250 saltos da origem:
+  o núcleo devolve 1.1e-68 e o pacote ~1.3e-14. Nenhum está errado. Chebyshev
+  constrói o estado por matvec esparso, então um sítio a 250 saltos só é
+  alcançado depois de 250 termos e sai com a cauda exponencial correta; a soma
+  espectral é uma soma de n termos O(1) que se cancelam, e o resto é ε. Os dois
+  concordam onde há física e discordam onde só há aritmética — se concordassem
+  também em 1e-68, o motivo mais provável seria estarem rodando o mesmo
+  algoritmo.
+
+E a estimativa de Lanczos do núcleo é **rigorosa mas folgada**: em
+`microtubulo-espectral` ela dá ‖H‖ = 5.799 contra o raio exato 3.975, 46% acima.
+Não é defeito — superestimar só alarga o intervalo de Chebyshev — mas significa
+que γt normalizado não é exatamente γt/ρ(H). A verificação impõe a escala do
+núcleo para comparar o propagador e reporta as duas.
 
 ### 6. Varredura, reimportação, i18n, tutorial — ✅ completa
 

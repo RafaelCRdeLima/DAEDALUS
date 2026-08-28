@@ -475,6 +475,46 @@ Tessera). Prefixo `dae_` em tudo que é público.
 Comentário explica **por que**, não o que. As regras deste documento aparecem
 citadas no ponto do código em que valem.
 
+### 11.1 Exceção: o pacote Wolfram tem símbolos públicos em português
+
+`templates/wolfram/Daedalus.wl` exporta `DaedalusRede`, `DaedalusPropagar`,
+`DaedalusObservaveis`, `DaedalusVarredura`, `DaedalusVerificarReferencia` e o
+resto em **português**, CamelCase com prefixo `Daedalus`. É a única exceção à
+regra de identificadores em inglês, e a razão fica registrada porque uma
+exceção sem razão escrita vira precedente.
+
+O núcleo em C é lido por quem trabalha no motor, e ali o inglês é a convenção do
+campo. Este pacote é lido e **modificado** por um colaborador de Mathematica —
+ele não é um oráculo que se roda e se confere, é código que se altera. Os
+comentários que explicam a física estão em português; ter os símbolos em inglês
+no meio deles produziria um texto que muda de língua a cada linha, e a fricção
+recairia justamente sobre quem mais precisa entender o que está lendo.
+
+O prefixo `Daedalus` não é decorativo: Wolfram tem um único espaço de nomes
+global por contexto, e um símbolo curto colide com o caderno do usuário.
+
+A regra do resto do projeto **não muda**. Esta exceção vale para
+`templates/wolfram/` e só para ele.
+
+### 11.1.1 Por que o pacote Wolfram não é uma tradução do núcleo
+
+Entre `.cpp` exportado, WASM e binário nativo a concordância é **estrutural**:
+mesmo texto, três compiladores, não há o que divergir (parte 3). Com o Wolfram
+isso é impossível — Wolfram não inclui C, e uma biblioteca compilada por
+LibraryLink seria caixa-preta, o oposto de inspeção.
+
+Então a garantia muda de natureza e passa a ser **empírica**: dois métodos,
+mesmo resultado. Para isso valer alguma coisa o método tem de ser
+**deliberadamente diferente**. O núcleo propaga por expansão de Chebyshev; o
+pacote propaga por decomposição espectral (`Eigensystem`) e por Krylov
+(`MatrixExp[-I H t, psi]`) quando N cresce. **Não há Chebyshev no pacote, de
+propósito**: duas implementações do mesmo algoritmo podem compartilhar o mesmo
+erro conceitual, e a concordância entre elas não provaria nada.
+
+O que TEM de bater exatamente, sem tolerância, é o que não é numérico: o fluxo
+do PRNG, a impressão digital do grafo e o contador de religações que falharam.
+Ver parte 12.1.
+
 ## 11.2 Reimportação: a única entrada que não nasce aqui
 
 O CSV que volta do cluster é a única entrada do sistema que não passa pelo
@@ -496,6 +536,13 @@ Três defesas, em `src/nucleo/reimportar.ts`:
 `core_hash` diferente é **aviso, não bloqueio**: reler resultado antigo é
 legítimo. Mas o aviso vai para a **tela**, não para o console, e o seletor de
 modo vira bronze — o número deixou de ser calculado aqui.
+
+**`#! implementacao` diz QUEM calculou**, que é outra pergunta e o `core_hash`
+não responde: o mesmo core_hash pode ter produzido o número pelo núcleo em C
+(`c`) ou pelo pacote Wolfram (`wolfram`), que usa outro método. A interface
+exibe a origem no selo, ao lado de "Reimportado". Ausência do campo — CSV de
+versão anterior — aparece como **"origem não declarada"**, nunca como "núcleo":
+supor a origem seria atribuir ao arquivo uma procedência que ele não afirma.
 
 ## 11.3 Internacionalização
 
@@ -553,6 +600,78 @@ npm test                   # fixtures da interface (mapeamento, paleta)
 npm run fumaca             # o aplicativo abre, propaga e DESENHA
 npm run build              # bundle estático
 ```
+
+### 12.1 Verificação do pacote Wolfram: manual, e por quê
+
+A CI **não tem Mathematica**. Este portão é manual, e por isso ele registra a si
+mesmo: cada execução vai para o ROADMAP.md com **data, `core_hash` e
+resultado**. Verificação manual sem registro é verificação que ninguém sabe se
+aconteceu.
+
+```
+wolframscript -e 'Get["templates/wolfram/Daedalus.wl"];
+  DaedalusVerificarReferencia["specs/oraculo"]'
+wolframscript -e 'Get["templates/wolfram/Daedalus.wl"];
+  DaedalusAntiVacuidade["specs/oraculo"]'
+```
+
+**A ordem da conferência é o diagnóstico**, e é ela que separa causas que se
+corrigem em lugares diferentes:
+
+1. **PRNG contra tabela de referência** (`specs/oraculo/prng.json`, gerada por
+   `native/tests/t96_prng_tabela.c`). Barata e a mais diagnóstica: se o
+   xoshiro256++ divergir, redes estocásticas saem diferentes e a discordância
+   não aparece como erro numérico, aparece como **física diferente**. Mesmo
+   raciocínio do teste 0 contra a tabela de Bessel.
+2. **Impressão digital do grafo**, exigida **idêntica**, sem tolerância nenhuma.
+3. **Contador de religações que falharam** (`#! rewire_failed`). A digital não
+   vê isto: uma tentativa que colide consome 100 sorteios e não muda aresta
+   nenhuma. O caso `completo-religado` existe só para isso — em K₁₂ **toda**
+   tentativa colide, o grafo sai idêntico ao original, e esse contador é a única
+   testemunha de que os dois gastaram o mesmo fluxo. Um caso com
+   `rewire_failed = 0` compararia zero com zero e não provaria nada.
+4. **Observáveis**, com tolerância declarada.
+
+**Três medidas, e nenhuma sozinha.** Erro relativo puro não serve: em t = 0 o
+núcleo escreve `p_alvo = 0` exato (Chebyshev em α = 0 dá a identidade sem
+arredondamento) e a soma espectral devolve 3e-32; o erro relativo é 1, o pior
+possível, para uma concordância de trinta e duas casas. Há uma lei por trás: se
+as amplitudes diferem de δ em valor absoluto, p = |ψ|² difere relativamente de
+~2δ/√p, o que explica cinco ordens de grandeza de erro relativo com uma única
+concordância de ~1e-15 na amplitude. Então:
+
+| medida | pior observado | declarada | margem |
+|---|---|---|---|
+| absoluta (tabela de escalares) | 9.4e-12 — `linha`, `coh_l1` que é O(n) | 1e-10 | 10× |
+| relativa (só acima do piso 1e-10) | 9.6e-11 — `microtubulo-seam0` | 1e-9 | 10× |
+| amplitude (estado final) | 1.5e-14 — **grade 2D**, n = 240 | 1e-12 | 68× |
+
+O piso **não afrouxa** o teste: abaixo dele o critério absoluto continua valendo
+e é ele que reprova discordância real. E os dois critérios se dividem o trabalho
+sem sobra — `norm`, `ipr` e `coh_l1` estão sempre muito acima do piso e caem no
+relativo; `p_alvo` e as populações por módulo atravessam caudas de 1e-30 e caem
+no absoluto.
+
+A grade 2D é mesmo o pior em amplitude, como se espera de espectro muito
+degenerado. O piso de ruído da soma espectral escala com n (≈ nε/4): quem rodar
+N ≫ 300 deve esperar a tolerância de amplitude subir junto — e reajustar sabendo
+por quê, não para fazer passar.
+
+**A escala é imposta.** O núcleo normaliza por estimativa de Lanczos com margem,
+o pacote pelo raio espectral exato, e os dois discordam por construção (em
+`microtubulo-espectral`, 5.799 contra 3.975). A verificação impõe a escala do
+núcleo para comparar o **propagador**, e reporta a diferença das duas escalas
+como número — senão uma discordância de norma contaminaria todas as colunas e
+esconderia qualquer discordância de propagador atrás dela.
+
+**Anti-vacuidade obrigatória.** `DaedalusAntiVacuidade` sabota o grafo
+(`seam_shift` 3→2), o fluxo de sorteios (`rewire_failed` 30→29 com a digital
+intacta), os números (deslocamento de 1e-6 **e** de 1e-15, para mostrar que o
+limiar tem dois lados), o arquivo (truncado, e sem o bloco de estado), e confere
+a identidade Σ_{M≤N} C_MN = C_ℓ1, que é álgebra da convenção e não comparação
+com o núcleo. Cada sabotagem tem de produzir **o veredito correspondente**: sem
+isso, "os 12 casos passaram" e "a verificação está quebrada e sempre verde" são
+indistinguíveis pelo resultado.
 
 **`make -C native mutants`** aplica um defeito deliberado por vez e imprime
 quem mordeu. Comentário não roda na CI; este roda. Onde o projeto tem defesa

@@ -68,7 +68,8 @@ if (process.argv[2] === '--ts') {
 export const HASH_NUCLEO = ${JSON.stringify(hashDoNucleo())};
 export const NUCLEO_C = ${lit(out)};
 export const TPL_CPP = ${lit(tpl('cpp_main.tpl.cpp'))};
-export const TPL_WL = ${lit(tpl('wolfram.tpl.wl'))};
+export const TPL_WL_PKG = ${lit(tpl('wolfram/Daedalus.wl'))};
+export const TPL_WL_NB = ${lit(tpl('wolfram/DaedalusDemo.nb'))};
 export const TPL_PY = ${lit(tpl('python.tpl.py'))};
 `;
   mkdirSync(dirname(destino), { recursive: true });

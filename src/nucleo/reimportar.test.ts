@@ -5,7 +5,7 @@
  * destes testes sem testar nada.
  */
 import { beforeAll, describe, expect, it } from 'vitest';
-import { reimportar } from './reimportar.ts';
+import { origemImplementacao, reimportar } from './reimportar.ts';
 import { Daedalus } from '../../wasm/build/daedalus.mjs';
 
 const SPEC = JSON.stringify({
@@ -120,5 +120,45 @@ describe('estado final e p_alvo', () => {
     const semAlvo = csvBom.replace(/,([0-9.eE+-]+),/, ',nan,');
     const r = reimportar('a.csv', semAlvo, HASH(), validar);
     expect(r.utilizavel).toBe(true);
+  });
+});
+
+/* `#! implementacao` responde QUEM calculou, que o `core_hash` nao responde: o
+   mesmo core_hash pode ter produzido o numero pelo nucleo em C ou pelo pacote
+   Wolfram, que propaga por decomposicao espectral e nao por Chebyshev. O modo
+   de falha e silencioso — um resultado do Wolfram exibido como se fosse do
+   nucleo continua sendo um grafico plausivel. */
+describe('origem da implementacao', () => {
+  it('reconhece as duas origens declaradas', () => {
+    expect(origemImplementacao('c').tipo).toBe('c');
+    expect(origemImplementacao('wolfram').tipo).toBe('wolfram');
+  });
+
+  it('ausente NAO vira nucleo: vira desconhecida', () => {
+    expect(origemImplementacao(undefined).tipo).toBe('desconhecida');
+    expect(origemImplementacao('').tipo).toBe('desconhecida');
+    expect(origemImplementacao('   ').tipo).toBe('desconhecida');
+  });
+
+  it('valor nao previsto sobrevive como literal, sem rotulo inventado', () => {
+    const o = origemImplementacao('julia');
+    expect(o.tipo).toBe('literal');
+    expect(o.tipo === 'literal' && o.literal).toBe('julia');
+  });
+
+  it('o CSV do nucleo declara a origem', () => {
+    const csv = ['#! core_hash abc', '#! implementacao c', '#! spec {}',
+                 't,norm', '0,1', '1,1'].join('\n');
+    const r = reimportar('x.csv', csv, 'abc', () => null);
+    expect(r.meta.get('implementacao')).toBe('c');
+  });
+
+  /* ANTI-VACUIDADE: se o parser lesse o campo de qualquer jeito, o teste acima
+     passaria tambem com o campo ausente. */
+  it('e o CSV sem o campo nao inventa um', () => {
+    const csv = ['#! core_hash abc', '#! spec {}', 't,norm', '0,1', '1,1'].join('\n');
+    const r = reimportar('x.csv', csv, 'abc', () => null);
+    expect(r.meta.get('implementacao')).toBeUndefined();
+    expect(origemImplementacao(r.meta.get('implementacao')).tipo).toBe('desconhecida');
   });
 });

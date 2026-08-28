@@ -7,13 +7,27 @@
  *          um parâmetro for serializado errado, o grafo sai diferente e a
  *          impressão digital diverge antes de qualquer observável.
  *
- *   .wl    RECEBEM o grafo como lista de arestas explícita. Reimplementar o
- *   .py    gerador em Wolfram criaria uma segunda implementação do que a
- *          amalgamação existe para manter única — e um oráculo que reproduz o
- *          mesmo engano do gerador não é oráculo. Em troca, o alcance deles é
- *          o PROPAGADOR e a grade de tempo, não o emissor.
+ *   .py    RECEBE o grafo como lista de arestas explícita. Reimplementar o
+ *          gerador em Python criaria uma segunda implementação do que a
+ *          amalgamação existe para manter única. Em troca, o alcance dele é o
+ *          PROPAGADOR e a grade de tempo, não o emissor.
+ *
+ *   .wl    NÃO é gerado por substituição: é o pacote Daedalus.wl do projeto,
+ *   .nb    verbatim, mais o caderno, mais o spec.json do usuário ao lado. Ele
+ *          é autônomo — gera a rede a partir dos PARÂMETROS — porque o
+ *          colaborador de Mathematica vai LER e MODIFICAR o gerador, e uma
+ *          lista de arestas pronta é um dado, não código.
+ *
+ *          Por isso a garantia dele também é de outra natureza. Entre .cpp e
+ *          WASM ela é ESTRUTURAL: mesmo texto, dois compiladores, não há o que
+ *          divergir. Com o Wolfram ela é EMPÍRICA: dois métodos — Chebyshev lá,
+ *          decomposição espectral aqui — e o mesmo resultado. Para isso valer
+ *          alguma coisa o método TEM de ser diferente, e é por isso que não há
+ *          Chebyshev no pacote.
  */
-import { HASH_NUCLEO, NUCLEO_C, TPL_CPP, TPL_PY, TPL_WL } from './recursos.gerado.ts';
+
+export interface Arquivo { nome: string; texto: string; }
+import { HASH_NUCLEO, NUCLEO_C, TPL_CPP, TPL_PY, TPL_WL_NB, TPL_WL_PKG } from './recursos.gerado.ts';
 
 export interface Grafo {
   n: number;
@@ -91,26 +105,25 @@ export function emitirCpp(specCanonico: string, quando: string,
 const num = (x: number) => (Number.isFinite(x) ? String(x) : '0');
 const fp = (g: Grafo | null) => (g && g.fingerprint !== undefined ? String(g.fingerprint) : '?');
 
-export function emitirWolfram(spec: Spec, g: Grafo, specCanonico: string, quando: string): string {
-  const sitio = (spec.initial?.site ?? 0) + 1;                 /* 1-indexado */
-  const alvoC = spec.observables?.target ?? -1;
-  return TPL_WL
-    .replace('(*__DAE_BANNER__*)', '(*\n' + banner(spec, g, specCanonico, quando, fp(g), '  ') + '\n*)')
-    .replace('(*__DAE_N__*)', String(g.n))
-    .replace('(*__DAE_ARESTAS__*)',
-             '{' + g.arestas.map(([i, j, w]) => `{${i + 1},${j + 1},${w}}`).join(',') + '}')
-    .replace('(*__DAE_HAM__*)', spec.hamiltonian?.kind ?? 'adjacency')
-    .replace('(*__DAE_GAMMA__*)', num(spec.hamiltonian?.gamma ?? 1))
-    .replace('(*__DAE_ESCALA__*)', num(g.escala))
-    .replace('(*__DAE_SITIO__*)', String(sitio))
-    .replace('(*__DAE_ALVO__*)', String(alvoC >= 0 ? alvoC + 1 : 0))
-    .replace('(*__DAE_T1__*)', num(spec.time?.t1 ?? 50))
-    .replace('(*__DAE_NT__*)', String(spec.time?.nt ?? 500))
-    .replace('(*__DAE_MODULOS__*)', '{' + Array.from(g.modulos, (m) => m + 1).join(',') + '}')
-    .replace('(*__DAE_NMOD__*)', String(g.nmod))
-    .replace('(*__DAE_HASH__*)', HASH_NUCLEO)
-    .replace('(*__DAE_SPEC_LINHA__*)', specCanonico)
-    .replace(/__ARQUIVO__/g, 'daedalus_oraculo.wl');
+/** Wolfram: TRÊS arquivos, e nenhum deles é gerado por substituição de valores.
+ *
+ * O pacote sai verbatim porque é ele que foi verificado contra os casos de
+ * referência; um pacote montado por template seria outro programa, e o
+ * resultado da verificação não valeria para o que o usuário recebeu. O único
+ * texto injetado é o cabeçalho de procedência, que é comentário.
+ *
+ * O spec vai como arquivo ao lado, e o caderno o lê se existir. Assim o
+ * colaborador recebe exatamente a rede que estava na tela sem que ninguém
+ * precise reescrever o gerador para embutir uma lista de arestas. */
+export function emitirWolfram(spec: Spec, g: Grafo, specCanonico: string,
+                              quando: string): Arquivo[] {
+  return [
+    { nome: 'Daedalus.wl',
+      texto: TPL_WL_PKG.replace('(*__DAE_BANNER__*)',
+        '(*\n' + banner(spec, g, specCanonico, quando, fp(g), '  ') + '\n*)') },
+    { nome: 'DaedalusDemo.nb', texto: TPL_WL_NB },
+    { nome: 'daedalus_spec.json', texto: specCanonico + '\n' },
+  ];
 }
 
 export function emitirPython(spec: Spec, g: Grafo, specCanonico: string, quando: string): string {

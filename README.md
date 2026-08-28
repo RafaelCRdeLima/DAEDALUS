@@ -14,8 +14,13 @@ Dois modos de uso:
    parâmetros, ver a dinâmica e os observáveis em tempo quase real, na máquina
    do usuário.
 2. **Exportador** — para redes grandes ou varreduras longas, emite código
-   autocontido (C++, Wolfram Language, Python) que reproduz exatamente a mesma
-   simulação em outro lugar, e depois reimporta os resultados.
+   autocontido que roda a mesma simulação em outro lugar, e depois reimporta os
+   resultados. O **C++** carrega o núcleo amalgamado e reproduz os números
+   **bit a bit** — é o mesmo texto, outro compilador. O pacote **Wolfram** é
+   outra coisa: um programa autônomo que propaga por decomposição espectral, e
+   não por Chebyshev, justamente para que a concordância entre os dois seja
+   evidência em vez de tautologia. Ele concorda com o núcleo em ~1e-14 na
+   amplitude, e o protocolo dessa verificação está em CONVENTIONS.md 12.1.
 
 A aplicação de interesse imediato é uma rede modular inspirada na organização
 estrutural dos microtúbulos, mas **o motor é geral para qualquer grafo**: a

@@ -34,6 +34,26 @@ export interface Reimportado {
   utilizavel: boolean;
 }
 
+/* QUEM calculou, que é outra pergunta e o `core_hash` não responde: o mesmo
+   core_hash pode ter produzido o número pelo núcleo em C ou pelo pacote
+   Wolfram, que usa outro método (decomposição espectral, não Chebyshev).
+   Um resultado do Wolfram não deve se passar por um do núcleo.
+
+   Campo ausente é caso real — CSV de versão anterior — e vira `desconhecida`,
+   nunca `c`: supor a origem seria atribuir ao arquivo uma procedência que ele
+   não afirma. Valor não previsto sobrevive como literal, porque inventar um
+   rótulo para ele seria a mesma suposição por outro caminho. */
+export type Origem =
+  | { tipo: 'c' } | { tipo: 'wolfram' } | { tipo: 'desconhecida' }
+  | { tipo: 'literal'; literal: string };
+
+export function origemImplementacao(v: string | undefined): Origem {
+  if (v === 'c') return { tipo: 'c' };
+  if (v === 'wolfram') return { tipo: 'wolfram' };
+  if (v !== undefined && v.trim().length > 0) return { tipo: 'literal', literal: v.trim() };
+  return { tipo: 'desconhecida' };
+}
+
 /** Devolve null se o spec for válido, ou a mensagem do parser em C. */
 export type ValidarSpec = (json: string) => string | null;
 

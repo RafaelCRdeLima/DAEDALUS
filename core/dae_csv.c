@@ -53,6 +53,13 @@ int32_t dae_csv(const dae_spec *S, const dae_graph *G, const dae_metrics *M,
 
   cs(&B, "#! daedalus %s\n", DAE_VERSION);
   cs(&B, "#! core_hash %s\n", DAE_CORE_HASH);
+  /* QUEM CALCULOU, que e outra pergunta que `core_hash` nao responde. O
+     core_hash diz de qual spec e de qual versao do projeto o resultado veio; a
+     implementacao diz qual programa produziu os numeros. O pacote Wolfram
+     escreve "wolfram" aqui. Sem esta linha, um CSV do Wolfram reimportado se
+     apresentaria como saida do nucleo em C — procedencia falsa, que e
+     exatamente o que o cabecalho existe para impedir. */
+  cs(&B, "#! implementacao %s\n", "c");
   cu(&B, "#! graph_fingerprint %llu\n", R->info.fingerprint);
   ci(&B, "#! n %d\n", G->n);
   ci(&B, "#! nnz %d\n", G->A.nnz);
@@ -78,6 +85,12 @@ int32_t dae_csv(const dae_spec *S, const dae_graph *G, const dae_metrics *M,
     ci(&B, "#! n_edges %d\n", M->n_edges);
     ci(&B, "#! n_components %d\n", M->n_components);
   }
+  /* Religacoes que nao acharam destino livre. Sai SEMPRE, inclusive zero: uma
+     tentativa que colide consome sorteios extras, entao este contador e a
+     unica testemunha externa de quantos sorteios o gerador gastou. Duas
+     implementacoes podem chegar a mesma digital por caminhos diferentes de
+     sorteio so se este numero tambem bater. */
+  ci(&B, "#! rewire_failed %d\n", G->n_rewire_failed);
   { /* o spec canônico entra em linha única: um resultado solto continua
        rastreável até o JSON que o gerou */
     int32_t precisa = dae_spec_canonical(S, NULL, 0) + 1;

@@ -95,10 +95,14 @@ self.onmessage = async (ev: MessageEvent) => {
           fingerprint: String(rede.fingerprint),
         };
         const spec = JSON.parse(msg.spec);
-        const texto = msg.alvo === 'cpp' ? emitirCpp(canonico, quando, grafo, spec)
-                    : msg.alvo === 'wl' ? emitirWolfram(spec, grafo, canonico, quando)
-                    : emitirPython(spec, grafo, canonico, quando);
-        self.postMessage({ tipo: 'exportado', alvo: msg.alvo, texto });
+        /* Wolfram sai como PACOTE (pacote + caderno + spec); os outros como um
+           arquivo só. A lista uniformiza os dois casos para a interface. */
+        const arquivos = msg.alvo === 'cpp'
+          ? [{ nome: 'daedalus_run.cpp', texto: emitirCpp(canonico, quando, grafo, spec) }]
+          : msg.alvo === 'wl'
+          ? emitirWolfram(spec, grafo, canonico, quando)
+          : [{ nome: 'daedalus_oraculo.py', texto: emitirPython(spec, grafo, canonico, quando) }];
+        self.postMessage({ tipo: 'exportado', alvo: msg.alvo, arquivos });
         break;
       }
       /* O layout espectral custa um Lanczos deflacionado a mais, então só é

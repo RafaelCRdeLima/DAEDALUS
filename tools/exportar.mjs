@@ -7,11 +7,13 @@
  *
  * Uso: node tools/exportar.mjs <spec.json> <cpp|wl|py> <saida>
  */
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 const [, , caminhoSpec, alvo, saida] = process.argv;
 if (!caminhoSpec || !alvo || !saida) {
   console.error('uso: exportar.mjs <spec.json> <cpp|wl|py> <saida>');
+  console.error('     wl escreve um diretorio: Daedalus.wl, DaedalusDemo.nb, daedalus_spec.json');
   process.exit(2);
 }
 
@@ -47,12 +49,25 @@ const grafo = {
   escala: rede.escala,
 };
 
-let out;
-if (alvo === 'cpp') out = emitirCpp(canonico, quando);
-else if (alvo === 'wl') out = emitirWolfram(spec, grafo, canonico, quando);
-else if (alvo === 'py') out = emitirPython(spec, grafo, canonico, quando);
-else { console.error(`alvo desconhecido: ${alvo}`); process.exit(2); }
+/* 'wl' escreve um DIRETORIO: o pacote, o caderno e o spec ao lado. Os outros
+   alvos escrevem um arquivo. */
+if (alvo === 'wl') {
+  mkdirSync(saida, { recursive: true });
+  let total = 0;
+  for (const a of emitirWolfram(spec, grafo, canonico, quando)) {
+    writeFileSync(join(saida, a.nome), a.texto);
+    total += a.texto.length;
+    console.error(`  wl: ${(a.texto.length / 1024).toFixed(0)} KB -> ${join(saida, a.nome)}`);
+  }
+  console.error(`  (n=${rede.n}, digital=${rede.fingerprint}, ` +
+                `alpha=${rede.alpha.toFixed(4)}, ${(total / 1024).toFixed(0)} KB no total)`);
+} else {
+  let out;
+  if (alvo === 'cpp') out = emitirCpp(canonico, quando);
+  else if (alvo === 'py') out = emitirPython(spec, grafo, canonico, quando);
+  else { console.error(`alvo desconhecido: ${alvo}`); process.exit(2); }
 
-writeFileSync(saida, out);
-console.error(`  ${alvo}: ${(out.length / 1024).toFixed(0)} KB -> ${saida}` +
-              `   (n=${rede.n}, digital=${rede.fingerprint}, alpha=${rede.alpha.toFixed(4)})`);
+  writeFileSync(saida, out);
+  console.error(`  ${alvo}: ${(out.length / 1024).toFixed(0)} KB -> ${saida}` +
+                `   (n=${rede.n}, digital=${rede.fingerprint}, alpha=${rede.alpha.toFixed(4)})`);
+}

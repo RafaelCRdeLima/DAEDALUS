@@ -3,6 +3,9 @@ import type { Catalog } from './types.ts';
 export const it: Catalog = {
   modo_local: () => 'Laboratorio · locale',
   modo_reimportado: () => 'Reimportato',
+  impl_c: () => 'nucleo C',
+  impl_wolfram: () => 'Wolfram',
+  impl_desconhecida: () => 'origine non dichiarata',
 
   sec_gerador: () => 'Generatore',
   sec_hamiltoniano: () => 'Hamiltoniana',
