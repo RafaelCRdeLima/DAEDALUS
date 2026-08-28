@@ -68,14 +68,16 @@ de algo mais específico.
 
 ### 2.2 Topologia × ruído — aqui está o problema para a hipótese original
 
-**Este é o trabalho que mais ocupa o nosso terreno.** Kilic e colaboradores estudaram o
+**Este é o trabalho que mais ocupa o nosso terreno.** Kurt, Rossi e Piilo estudaram o
 papel da topologia de grafo na eficiência de transporte em redes de remoção aleatória e
 Watts-Strogatz, com quatro modelos ambientais (sem ruído, ruído telegráfico clássico, banho
 quântico térmico, banho + RTN). Concluíram que mudanças pequenas e específicas na topologia
 são mais eficazes que manipulações ambientais, e classificaram a dependência de ruído da
 eficiência em redes Watts-Strogatz em seis classes.
-→ *Quantum transport efficiency in noisy random-removal and small-world networks*,
-J. Phys. A 56, 145301 (2023), arXiv:2205.10066.
+→ Kurt, Rossi & Piilo, *Quantum transport efficiency in noisy random-removal and small-world
+networks*, J. Phys. A 56, 145301 (2023), arXiv:2205.10066.
+Conferido na varredura: `community`, `modular` e `coherence` aparecem **zero** vezes no texto
+completo. O observável é η, probabilidade de captura no sorvedouro.
 
 Do lado unitário, CTQW em redes small-world construídas adicionando ligações aleatórias a
 um anel: transporte muito rápido, mas sem equipartição — em média o éxciton continua mais
@@ -160,10 +162,17 @@ markoviano local, aumentar conectividade ou tamanho **encurtou** a meia-vida de 
 porque cada sítio ou ligação adicional traz canais de decaimento extras. Só com ruído
 amortecido por estrutura de memória ou subradiante é que conectividade maior permaneceu
 tolerável.
-→ Frontiers in Psychiatry (2026), doi 10.3389/fpsyt.2026.1855963.
+→ **Cheung, N.** (2026), *Transient entanglement in minimal open XXZ spin chains: a toy-model
+analogy for microtubule-inspired quantum biology*, Front. Psychiatry 17, 1855963,
+doi 10.3389/fpsyt.2026.1855963. Autor único, tipo "Hypothesis and Theory". **A escala importa e
+não estava dita: N = 4, 6, com varredura até 10** — o `helical_segment` deles é um grafo de
+**seis sítios com nove ligações**. Ver `bibliografia/NOVIDADE.md` item 4: o observável é pureza
+global sob amortecimento de amplitude, não coerência entre módulos sob defasagem pura.
 
-Isso **contraria diretamente a nossa hipótese central no regime com ruído**. Precisa ser
-lido inteiro, e é a primeira coisa a checar na varredura.
+Isso parecia **contrariar diretamente a nossa hipótese central no regime com ruído**. Foi lido
+inteiro na varredura, e **não contraria**: mede pureza global com amortecimento de amplitude em
+N ≤ 10, e a "conectividade" que encurta a meia-vida é em boa parte o acoplamento J. Ver
+`bibliografia/NOVIDADE.md` item 4 — H4 fica, reescrita como hipótese sobre pureza sob perda.
 
 Nota de contexto que também importa: esse artigo saiu numa revista de psiquiatria. É onde
 trabalhos com enquadramento "microtubule-inspired" tendem a cair. Vale considerar ao
@@ -185,8 +194,10 @@ Networks*, PRX 4, 041012 (2014).
 Nota: usa transporte para **encontrar** comunidades. Nós queremos o inverso — como a
 comunidade afeta o transporte.
 
-→ *Quantum walks in complex networks with community structure* (autoria a confirmar na
-varredura): CTQW em redes com estrutura de comunidade, foco em falhas de ligação.
+→ **Tsomokos**, *Quantum walks on complex networks with connection instabilities and community
+structure*, PRA 83, 052315 (2011), arXiv:1012.2405. CTQW em redes com estrutura de comunidade,
+foco em falhas de ligação. **Unitário puro**: `dephasing`, `decoherence`, `Lindblad` e
+`coherence` aparecem zero vezes. É o mais próximo em estrutura, e não tem ruído.
 
 ---
 
@@ -196,7 +207,7 @@ A hipótese original, como está na Seção 2 do projeto, está em grande parte 
 
 | O que pensávamos ser novo | Onde já está |
 |---|---|
-| Varredura em `p` de Watts-Strogatz com decoerência | Kilic 2023, arXiv:2205.10066 |
+| Varredura em `p` de Watts-Strogatz com decoerência | Kurt, Rossi & Piilo 2023, arXiv:2205.10066 |
 | Existência de ótimo de defasagem | Plenio & Huelga 2008; Maier 2019 |
 | Compromisso localização × coerência | arXiv:2507.17880 (2026) |
 | CTQW em small-world, transporte rápido sem equipartição | Mülken 2007 |
@@ -209,7 +220,7 @@ A hipótese original, como está na Seção 2 do projeto, está em grande parte 
 
 **O plano bidimensional com modularidade explícita.** Ninguém varreu simultaneamente um
 parâmetro de modularidade e a taxa de defasagem medindo *coerência resolvida por módulo*.
-Kilic varreu topologia × ruído, mas com eficiência de transporte agregada, não com
+Kurt, Rossi & Piilo varreram topologia × ruído, mas com eficiência de transporte agregada, não com
 correlações entre blocos. O estudo de 2026 mediu coerência ℓ₁, mas em topologias não
 modulares. A nossa `ConcurrencePorModulo` é o observável que ninguém está usando.
 
@@ -513,7 +524,7 @@ propósito para o qual foi desenhada.
 >    (conectividade maior encurta a meia-vida de pureza sob ruído markoviano local) contraria
 >    diretamente a nossa hipótese H3. Leia inteiro, extraia o modelo de ruído exato, a
 >    definição de conectividade que usaram, e em que condições o efeito se inverteu.
-> 2. **arXiv:2205.10066** (Kilic et al. 2023) — o que mais ocupa o nosso terreno. Preciso
+> 2. **arXiv:2205.10066** (Kurt, Rossi & Piilo 2023) — o que mais ocupa o nosso terreno. Preciso
 >    saber exatamente: quais observáveis, se há qualquer resolução por comunidade, e o que
 >    são as "seis classes" de dependência de ruído.
 > 3. **arXiv:2507.17880** (estabilidade de CTQW, 2026) — usa coerência ℓ₁ como nós.
