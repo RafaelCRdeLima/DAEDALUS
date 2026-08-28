@@ -251,6 +251,14 @@ modulares.
 Esta subseção existe porque a primeira formulação estava errada de um jeito que não
 aparecia, e o erro era de definição, não de código.
 
+**Nomenclatura, fixada pela varredura.** `C_inter` não é definição nossa: é a medida ℓ₁ da
+teoria de recursos de **coerência de bloco** (Åberg), com blocos = módulos da rede. Os
+estados *block-incoherent* são os que só têm blocos diagonais, a operação livre é o
+*block-dephasing* que zera o resto, e `Σ_M C_MM + Σ_{M<N} C_MN = C_ℓ1` é a decomposição
+canônica dessa teoria. Usar o vocabulário dela dá ao observável monotonicidade demonstrada
+sob operações livres, em vez de o apresentar como conveniência. Ver
+`bibliografia/NOVIDADE.md` item 5.
+
 O núcleo calcula hoje, em `dae_obs.c`:
 
 ```
@@ -299,17 +307,48 @@ onde a média entra.
 simétrico, isso conta cada par duas vezes e não fecha com C_ℓ1. O certo é `Σ_{M<N}`, sobre
 pares **não ordenados** — o fator 2 já está dentro de `C_MN`.
 
-**Variante barata, disponível de graça.** Com o módulo **fora** do bloco,
+**A variante barata foi considerada e REPROVADA.** Com o módulo **fora** do bloco,
 
 ```
 C̃_MN = | Σ_{i∈M, j∈N} ρ_ij | = | ⟨ S_M S_N* ⟩ |      S_M = Σ_{i∈M} ψ_i
 ```
 
-mede a coerência entre os **modos coletivos** dos módulos, custa O(n_mod²) em vez de O(N²),
-é sensível a fase e decai sob defasagem. Não satisfaz a identidade e **não** é o mesmo
-número nem no caso puro. É outra pergunta, defensável: "os módulos oscilam em fase entre
-si?" em vez de "quanta coerência de par sobrevive entre eles?". Reportar as duas é barato na
-escala escolhida abaixo, e a comparação entre elas é informativa por si.
+custaria O(n_mod²) em vez de O(N²). Mas ela **não é uma medida de coerência de bloco**, e a
+razão é estrutural, não de precisão.
+
+Unitárias que agem **dentro** de um bloco são operações livres da partição: preservam o
+conjunto dos estados block-incoherent e são reversíveis, logo toda medida legítima tem de
+ser **invariante** sob elas. `C̃_MN` não é. Contraexemplo mínimo, dois módulos de dois
+sítios, verificado numericamente:
+
+```
+ψ  = ( 1,  1,  1,  1)/2   →   C_01 (dentro) = 2.0     C̃_01 (fora) = 1.0
+ψ' = ( 1, -1,  1,  1)/2   →   C_01 (dentro) = 2.0     C̃_01 (fora) = 0.0
+```
+
+A inversão de fase é uma unitária dentro do módulo 0. Nenhum `|ρ_ij|` muda, a coerência de
+bloco continua exatamente 2,0 — e a variante barata cai a **zero**. Ela relataria "nenhuma
+coerência entre os módulos" para um estado de coerência de bloco máxima.
+
+O que `C̃_MN` mede é a coerência entre dois **modos coletivos específicos** — as
+superposições uniformes de cada módulo — e isso mistura coerência de bloco com a estrutura
+de fase interna. É grandeza legítima, e é outra: se for reportada, tem de ser com outro nome
+e sem ser chamada de coerência entre módulos.
+
+**Consequência prática:** o caminho denso não é preferência, é requisito. E é isso que fixa
+a escala da varredura em 5.3 — N = 520 não é economia, é o que torna o observável correto
+acessível.
+
+**Bônus da escala escolhida.** Com ρ denso disponível, também cabe a medida **canônica** da
+teoria de recursos, a entropia relativa de coerência de bloco,
+
+```
+C_rel(ρ) = S(Δ[ρ]) − S(ρ)          Δ = mapa de block-dephasing (zera os blocos fora da diagonal)
+```
+
+que exige os autovalores de ρ — O(N³) uma vez por ponto da grade, não por trajetória, e
+instantâneo em N = 520. Reportar `C_inter` (ℓ₁) e `C_rel` juntas põe o resultado dentro da
+teoria de recursos em vez de ao lado dela.
 
 ### 5.2 Formulação precisa
 
@@ -377,14 +416,40 @@ O Lanczos permanece no navegador, onde o custo importa e onde a bandeira já est
 - **H1.** Existe `γ*_deph` que maximiza `C_inter` a `p` fixo — ENAQT no observável de
   coerência, não só no de transporte. Com ρ acumulado esta hipótese passa a ser testável;
   com a definição anterior ela era vazia, porque o observável não via a defasagem.
-- **H2.** `γ*_deph` **depende de `p`**: o ótimo de ruído se move com a modularidade. É a
-  pergunta nova. Se a crista for horizontal no plano, H2 é falsa e o resultado é que
-  arquitetura e ruído desacoplam — o que também é resultado.
+- **H2.** `γ*_deph` **depende de `p`**: o ótimo de ruído se move com a modularidade. Se a
+  crista for horizontal no plano, H2 é falsa e o resultado é que arquitetura e ruído
+  desacoplam. **Deixou de ser a pergunta nova**: Coates, Lovett & Gauger (NJP 2021) mostram
+  que a localização dos autoestados determina a taxa ótima, e a modularidade muda a
+  localização — então H2 tem previsão mecanística, e confirmá-la é extensão, não descoberta.
+  O peso desloca-se para **quanto** a crista se move, e com que lei.
+- **H2b — a pergunta forte, e é esta.** A crista de **coerência** coincide com a crista de
+  **transporte**? Não há razão para coincidirem, e ninguém mediu as duas no mesmo plano.
+  Se não coincidirem, "projetar para o transporte chegar" e "projetar para coerência como
+  recurso" são objetivos **distintos, com ótimos distintos** — que é exatamente a pergunta
+  tecnológica da reformulação da Seção 1, agora com forma mensurável. Antecedente direto do
+  lado do transporte: Walschaers et al. (PRL 2013) projetam a rede ótima por critério
+  **espectral** (centrossimetria + estrutura de dubletos), mas no limite **unitário**: uma
+  crista só, sem eixo de ruído, e sem coerência como recurso.
+
+  **Exigência operacional, e ela não é detalhe.** As duas superfícies têm de sair do
+  **mesmo conjunto de execuções**, não de duas rodadas. Se `C_inter` e `p_alvo` integrado
+  vierem de trajetórias diferentes, a distância entre as cristas fica contaminada por ruído
+  estatístico independente, e a conclusão passa a ser sobre a barra de erro em vez de sobre
+  a física. Com o mesmo ensemble, a diferença é correlacionada e a comparação é honesta.
 - **H3.** Existe região onde `C_inter` é alta **e** o IPR permanece acima de um limiar: o
   "regime intermediário" da Seção 2 original, agora com ruído.
-- **H4 (contraditória, e testada de frente).** O achado do Frontiers 2026 prevê que sob ruído
-  markoviano local conectividade maior **reduz** a preservação de coerência. Se valer aqui,
-  H3 é falsa e o resultado do trabalho é a delimitação de quando cada comportamento vale.
+- **H4, reescrita.** O achado de Cheung (2026) é sobre **pureza global sob perda de
+  excitação**, não sobre coerência entre módulos sob defasagem pura — ver
+  `bibliografia/NOVIDADE.md` item 4. Reescrita: *acrescentando amortecimento de amplitude ao
+  modelo, a crista de `C_inter` sobrevive?* Se sobreviver, temos a delimitação de quando cada
+  comportamento vale; se não, temos o mecanismo. É barato e responde de frente.
+
+  **Cuidado de implementação, desde o primeiro dia.** Com amortecimento de amplitude a norma
+  deixa de se conservar por um **segundo** motivo além do salto de defasagem, e o diagnóstico
+  de norma — o indicador mais confiável do projeto, que atravessou seis etapas — para de
+  distinguir "a trajetória saltou" de "a excitação foi perdida". São **dois contadores
+  separados** desde o início, não um só interpretado depois: caso contrário o instrumento
+  fica ambíguo exatamente onde a física fica interessante.
 
 ### 5.6 Geometria de referência
 

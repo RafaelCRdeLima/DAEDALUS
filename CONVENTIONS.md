@@ -382,6 +382,36 @@ transversal; o comparador de CSV exige norma em 1 **e** pacote espalhado; a
 varredura de α falha se a faixa coberta não passar de duas ordens de grandeza;
 cada teste de aceitação do reimportador tem um gêmeo de recusa.
 
+### 10.1.6 Ausência não se afirma sem provar que a sonda enxerga
+
+Regra de **método**, e não só de código: vale para busca em texto, para varredura
+bibliográfica, para consulta a banco, e para qualquer lugar onde "não achei" vire
+conclusão.
+
+**Nenhuma afirmação de ausência sem a medida que prova que a sonda enxerga.**
+
+Uma sonda quebrada e uma ausência real produzem exatamente o mesmo resultado — vazio — e
+a diferença entre as duas é toda a diferença entre um achado e um engano. É a mesma
+classe do fundo `#101A24` que era igual a `cor(0)`: o mapa estava correto, a rede estava
+lá, e a medida não a enxergava.
+
+Na prática, duas exigências:
+
+1. **Consulta-canário.** Antes de confiar num "não encontrei", rode uma consulta cuja
+   resposta você já conhece e exija que ela apareça. Se o canário não volta, a busca está
+   quebrada e todo "não encontrei" dela é ruído.
+2. **A sonda é conferida no próprio alvo.** Contar zero ocorrências num PDF só vale depois
+   de conferir que o PDF produziu texto: 6 páginas e 23 939 caracteres extraídos é medida;
+   `grep -c` devolvendo zero num arquivo que não extraiu nada é o mesmo zero, e não quer
+   dizer nada.
+
+Registre quantos resultados cada consulta devolveu. **Consulta com zero resultados é
+suspeita, não conclusão** — e uma afirmação de "ninguém fez X" precisa listar as consultas
+que procuraram X e falharam, senão a ausência de evidência não mostra onde procurou.
+
+Aplicado em `bibliografia/TRIAGEM.md`, que traz as duas coisas: a tabela das 13 consultas
+com o número de resultados de cada uma, e a conferência da extração antes das contagens.
+
 ### 10.2 Fixtures com resposta conhecida, e anti-vacuidade junto
 
 Com `seam_shift = 0` a rede é o produto cartesiano `P_41 × C_13`: a dinâmica

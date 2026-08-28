@@ -68,7 +68,15 @@ consequências:
 - A pergunta genuinamente aberta vira outra, e é melhor: **a crista de coerência coincide com
   a crista de transporte?** Não há razão para coincidirem — `adithya2026-stability` já
   observa redes que são estáveis num modelo de ruído e vulneráveis noutro — e ninguém mediu
-  as duas no mesmo plano. Sugiro promover isso a H2b.
+  as duas no mesmo plano. **Promovida a H2b** na seção 5.5 do documento.
+
+  O antecessor direto do lado do transporte é `walschaers2013`, lido inteiro nesta rodada:
+  projeto inverso por critério **espectral** — centrossimetria em relação a |in⟩ e |out⟩ mais
+  estrutura dominante de dubletos, "controlada por quantidades de granulação grossa". Sustenta
+  a escolha de λ₂ como eixo, e é **unitário puro** (`dephasing`, `decoherence`, `noise` e
+  `Lindblad` com zero ocorrências): uma crista só, sem eixo de ruído, sem coerência como
+  recurso. Ele mostra que a superfície de transporte tem ótimo espectral; não pode dizer nada
+  sobre se as duas superfícies têm o mesmo ótimo.
 
 ## 4. H4 (o achado do Frontiers) se aplica ao nosso regime?
 
@@ -134,8 +142,18 @@ Consequências práticas, e são imediatas:
 - **Reescrever a seção 5.1** em linguagem de coerência de bloco. Isso põe o observável numa
   teoria de recursos com resultados de monotonicidade prontos, em vez de o apresentar como
   definição ad hoc — e um referee de teoria quântica vai reconhecer o objeto.
-- **A variante "módulo fora do bloco"** — `|⟨S_M S_N*⟩|` — provavelmente também tem nome
-  nessa literatura. Vale uma consulta dirigida antes de batizá-la.
+- **A variante "módulo fora do bloco"** — `|⟨S_M S_N*⟩|` — foi investigada e **não serve**.
+  Ela não é invariante sob unitárias **dentro** de um bloco, que são operações livres e
+  reversíveis da partição, logo não é monotona e não é medida de coerência de bloco.
+  Contraestampa mínima, conferida numericamente: com ψ = (1,1,1,1)/2 em dois módulos de dois
+  sítios ela vale 1,0; com ψ = (1,−1,1,1)/2 — uma inversão de fase **dentro** do módulo 0,
+  que não muda nenhum `|ρ_ij|` — ela cai a **0,0**, enquanto a coerência de bloco permanece
+  2,0. Reportaria "nenhuma coerência entre módulos" para um estado de coerência máxima.
+  **Isto decide a favor da variante densa, e portanto de N = 520.**
+- **Bônus:** com ρ denso, cabe também a medida canônica da teoria, a entropia relativa de
+  coerência de bloco `C_rel(ρ) = S(Δ[ρ]) − S(ρ)`. Exige os autovalores de ρ — O(N³) uma vez
+  por ponto da grade, instantâneo em N = 520. Reportar ℓ₁ e `C_rel` juntas põe o trabalho
+  dentro da teoria de recursos em vez de ao lado dela.
 - Nota histórica útil: `celardo2019` já usa "block" 44 vezes para os blocos do microtúbulo
   (supertransfer entre blocos). A linguagem de blocos **já existe na literatura de
   microtúbulos**, por outro motivo. As duas se encaixam.

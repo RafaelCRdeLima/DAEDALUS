@@ -15,7 +15,7 @@ recebesse; nenhum recebeu, e a seção "Consultas" abaixo mostra onde procurei.
 | `gassab2026-microtubule-tryptophan` | **ADJACENTE** | O mais próximo em **geometria**: espiral de 13 dímeros, Lindblad, ℓ₁. Mas ℓ₁ por pares selecionados, sem costura, sem varredura de taxa. |
 | `coates2021-localisation-optimal-noise` | **ADJACENTE** | Mostra que a localização determina a taxa ótima — mas em cadeias 1D com desordem, sobre eficiência de transporte. **Afia H2 em vez de ocupá-la.** |
 | `mulken2007-smallworld` | **ADJACENTE** | CTQW small-world, transporte rápido sem equipartição. Acrescenta ligações; nossa disciplina de \|E\| fixo é mais rigorosa. |
-| `walschaers2013-optimally-designed` | **ADJACENTE** | Projeto inverso existe, para eficiência de transporte em redes desordenadas — não para coerência entre módulos. |
+| `walschaers2013-optimally-designed` | **ADJACENTE** | **Lido inteiro.** Antecessor direto de H2b do lado do transporte: projeto inverso por critério **espectral** (centrossimetria + estrutura de dubletos, 18 ocorrências), controlado por "quantidades de granulação grossa" — o que sustenta λ₂ como eixo. Mas **unitário puro**: `dephasing` 0, `decoherence` 0, `noise` 0, `Lindblad` 0. Uma crista só, sem eixo de ruído. |
 | `lawrence2026-site-dependent-noise` | **ADJACENTE** | Otimiza o **ruído** por sítio, não a topologia. Eixo invertido do nosso. |
 | `sarkar2023-longrange-dephasing` | **ADJACENTE** | α_c ≈ 1,5 para hopping 1/r^α com defasagem; fixa que α = 3 dipolar é curto alcance. |
 | `cheung2026-xxz-toy-microtubule` | **ADJACENTE** | A fonte de H4. Ver item 4 de `NOVIDADE.md`: observável e regime diferentes dos nossos. |
