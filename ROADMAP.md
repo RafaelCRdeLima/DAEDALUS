@@ -346,3 +346,15 @@ que ele falhe, e não faz requisição nenhuma para fora, como o resto do pacote
 Defasagem tipo Haken–Strobl por **trajetórias quânticas com saltos**, mantendo
 vetores `O(N)`. Nunca propagar a matriz densidade densa: `N²` seriam 6,8 M
 elementos em `N = 2600`.
+
+**Ressalva, e ela é sobre o que a regra proíbe.** A regra é sobre PROPAGAR: o
+estado continua sendo vetor `O(N)` em cada trajetória. Ela não proíbe usar uma
+matriz `N²` como **acumulador de médias** — e a varredura da fase 2 precisa de
+uma, porque o observável central é `⟨ψ_i ψ_j*⟩` promediado sobre trajetórias e
+só então tomado em módulo. Calcular a coerência por trajetória e promediar
+mediria espalhamento de amplitude, não coerência: cada trajetória permanece
+pura, e a defasagem não entraria na conta. Ver `docs/daedalus-estado-da-arte.md`
+seção 5.1.
+
+A varredura roda em `N = 520` (40 × 13), onde o acumulador ocupa 4,3 MB e a
+questão desaparece. O regime de interesse é fixado por `λ₂` e `Q`, não por `N`.
