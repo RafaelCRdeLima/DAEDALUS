@@ -631,6 +631,30 @@ npm run fumaca             # o aplicativo abre, propaga e DESENHA
 npm run build              # bundle estático
 ```
 
+### 11.6 A ordem da soma é contrato, não consequência do laço
+
+Vale para toda redução sobre um ensemble, e a fase 2 é o primeiro caso.
+
+Soma de ponto flutuante não é associativa. Se a ordem em que as contribuições
+entram depender do laço — ou pior, do escalonador — dois caminhos que deveriam
+concordar bit a bit passam a concordar por sorte, e a divergência aparece quando
+alguém muda `OMP_NUM_THREADS`.
+
+`dae_rho_acc_somar` **recusa** índice fora de sequência com `DAE_ERR_PARAM`. Não
+é comentário pedindo boa-fé: quem somar fora de ordem recebe erro em vez de
+receber outro número.
+
+**Por isso a paralelização é por CÉLULA da grade, não por trajetória dentro de
+uma célula.** Acumular por thread e reduzir em ordem de thread parece resolver e
+não resolve: o número de threads entra no resultado, e o mesmo `spec.json` com
+outra máquina dá outros dígitos. Com uma célula por thread, cada acumulador é
+privado, a soma interna é serial e ordenada, e a reprodutibilidade não depende
+de quem terminou primeiro.
+
+E a semente é **derivada do índice**, nunca puxada de um gerador compartilhado
+(`dae_traj_semente`): um fluxo comum faria o consumo depender da ordem de
+chegada das threads, que é a mesma doença por outra porta.
+
 ### 12.1 Verificação do pacote Wolfram: manual, e por quê
 
 A CI **não tem Mathematica**. Este portão é manual, e por isso ele registra a si

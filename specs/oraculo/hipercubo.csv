@@ -1,5 +1,5 @@
 #! daedalus 0.1.0
-#! core_hash 9cbcc100c8b73b07
+#! core_hash 38a7c906e0794c1d
 #! implementacao c
 #! graph_fingerprint 14849442719752414025
 #! n 256
@@ -23,7 +23,7 @@
 #! n_edges 1024
 #! n_components 1
 #! rewire_failed 0
-#! spec {"format_version":1,"core_hash":"9cbcc100c8b73b07","seed":2026,"graph":{"generator":"hypercube","params":{"n_par":200,"n_perp":13,"seam_shift":3,"longitudinal_closed":false,"j_par":1,"j_perp":1,"n_modules":1,"ws_p":0,"conn_mode":"rewire","p_in":0,"p_out":0,"n":64,"dim":8,"rows":8,"cols":8}},"hamiltonian":{"kind":"adjacency","gamma":1,"normalization":"mean_degree","lanczos_steps":40},"initial":{"site":0},"time":{"t1":4,"nt":12},"observables":{"target":255,"population":false,"module_concurrence":true,"full_concurrence":false,"pop_stride":1},"realizations":1}
+#! spec {"format_version":2,"core_hash":"38a7c906e0794c1d","seed":2026,"graph":{"generator":"hypercube","params":{"n_par":200,"n_perp":13,"seam_shift":3,"longitudinal_closed":false,"j_par":1,"j_perp":1,"n_modules":1,"ws_p":0,"conn_mode":"rewire","p_in":0,"p_out":0,"n":64,"dim":8,"rows":8,"cols":8}},"hamiltonian":{"kind":"adjacency","gamma":1,"normalization":"mean_degree","lanczos_steps":40},"initial":{"site":0},"time":{"t1":4,"nt":12},"observables":{"target":255,"population":false,"module_concurrence":true,"full_concurrence":false,"pop_stride":1},"realizations":1}
 t,norm,ipr,coh_l1,p_target,pmod0
 0.33333333333333331,0.99999999999999856,0.97262016267544449,0.89577860264592335,8.2150311353409899e-23,0.99999999999999856
 0.66666666666666663,1.0000000000000049,0.89507249596779492,2.4141208820780036,5.3095254754884115e-18,1.0000000000000049

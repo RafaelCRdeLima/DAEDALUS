@@ -165,6 +165,12 @@ static const dae_mapa MAPA_CONN[] = {
 static const dae_mapa MAPA_HAM[] = {
   { "adjacency", DAE_H_ADJACENCY }, { "laplacian", DAE_H_LAPLACIAN }, { 0, 0 }
 };
+/* Sem entrada para INDEFINIDA: ela nao e escrevivel no arquivo, e sim o estado
+   de "o bloco existe e nao disse". */
+static const dae_mapa MAPA_SAIDA[] = {
+  { "accumulate_rho", DAE_SAIDA_ACUMULAR_RHO },
+  { "archive_psi",    DAE_SAIDA_ARQUIVAR_PSI }, { 0, 0 }
+};
 static const dae_mapa MAPA_NORM[] = {
   { "none", DAE_NORM_NONE }, { "spectral", DAE_NORM_SPECTRAL },
   { "mean_degree", DAE_NORM_MEAN_DEGREE }, { 0, 0 }
@@ -208,6 +214,10 @@ void dae_spec_default(dae_spec *S)
   S->want_conc_mod = 1;
   S->pop_stride = 1;
   S->realizations = 1;
+  S->n_traj = 0;
+  S->gamma_deph = 0.0;
+  S->rho_stride = 1;
+  S->saida_traj = DAE_SAIDA_INDEFINIDA;
 }
 
 void dae_spec_free(dae_spec *S)
@@ -342,6 +352,7 @@ dae_status dae_spec_parse(dae_spec *S, const char *json, dae_error *err)
   dae_js j;
   char k[48];
   int primeiro = 1;
+  int tem_traj = 0;
 
   if (!S || !json) return DAE_ERR_PARAM;
   dae_spec_default(S);
@@ -398,6 +409,21 @@ dae_status dae_spec_parse(dae_spec *S, const char *json, dae_error *err)
       }
     }
     else if (CHAVE("realizations")) { if (!js_numero(&j, &v)) break; S->realizations = (int32_t)v; }
+    else if (CHAVE("trajectories")) {
+      int p3 = 1;
+      tem_traj = 1;
+      if (!js_obj_inicio(&j)) break;
+      while (js_obj_chave(&j, k, (int32_t)sizeof(k), &p3)) {
+        if      (CHAVE("n_traj"))     { if (!js_numero(&j, &v)) break; S->n_traj = (int32_t)v; }
+        else if (CHAVE("gamma_deph")) { if (!js_numero(&j, &v)) break; S->gamma_deph = v; }
+        else if (CHAVE("rho_stride")) { if (!js_numero(&j, &v)) break; S->rho_stride = (int32_t)v; }
+        else if (CHAVE("output_mode")) {
+          if (!js_enum(&j, MAPA_SAIDA, &e)) break;
+          S->saida_traj = (dae_saida_traj)e;
+        }
+        else { js_erro(&j, "chave desconhecida em trajectories"); break; }
+      }
+    }
     else { js_erro(&j, "chave desconhecida na raiz"); break; }
   }
   if (!j.ok) { dae_spec_free(S); return DAE_ERR_JSON; }
@@ -412,6 +438,20 @@ dae_status dae_spec_parse(dae_spec *S, const char *json, dae_error *err)
   }
   S->gen.seed = S->seed;
   if (S->n_edges > 0) S->gen.kind = DAE_G_EDGELIST;
+  /* SEM PADRAO IMPLICITO. O bloco existir e nao dizer o modo e erro, e a
+     mensagem diz o que fazer — a escolha e do usuario porque as duas saidas
+     resolvem problemas diferentes, e escolher por ele so apareceria meses
+     depois, quando o observavel mudasse e os psi nao existissem mais. */
+  if (tem_traj && S->saida_traj == DAE_SAIDA_INDEFINIDA) {
+    js_erro(&j, "trajectories exige output_mode: \"accumulate_rho\" ou \"archive_psi\"");
+    dae_spec_free(S);
+    return DAE_ERR_JSON;
+  }
+  if (S->n_traj < 0 || S->gamma_deph < 0.0 || S->rho_stride <= 0) {
+    js_erro(&j, "n_traj e gamma_deph nao podem ser negativos, rho_stride precisa ser positivo");
+    dae_spec_free(S);
+    return DAE_ERR_JSON;
+  }
   if (S->nt <= 0 || S->pop_stride <= 0 || S->realizations <= 0) {
     js_erro(&j, "nt, pop_stride e realizations precisam ser positivos");
     dae_spec_free(S);
@@ -509,7 +549,16 @@ int32_t dae_spec_canonical(const dae_spec *S, char *buf, int32_t cap)
   bufs(&B, ",\"module_concurrence\":%s", S->want_conc_mod ? "true" : "false");
   bufs(&B, ",\"full_concurrence\":%s", S->want_conc_full ? "true" : "false");
   bufi(&B, ",\"pop_stride\":%d}", S->pop_stride);
-  bufi(&B, ",\"realizations\":%d}", S->realizations);
+  bufi(&B, ",\"realizations\":%d", S->realizations);
+  /* O bloco so entra no canonico quando existe de fato: um spec unitario nao
+     deve carregar campos de trajetoria zerados, que pareceriam escolha. */
+  if (S->n_traj > 0 || S->saida_traj != DAE_SAIDA_INDEFINIDA) {
+    bufi(&B, ",\"trajectories\":{\"n_traj\":%d", S->n_traj);
+    bufd(&B, ",\"gamma_deph\":%.17g", S->gamma_deph);
+    bufi(&B, ",\"rho_stride\":%d", S->rho_stride);
+    bufs(&B, ",\"output_mode\":\"%s\"}", nome_de(MAPA_SAIDA, (int)S->saida_traj));
+  }
+  bufs(&B, "%s", "}");
 
   if (cap > 0) buf[B.n < cap ? B.n : cap - 1] = '\0';
   return B.n;

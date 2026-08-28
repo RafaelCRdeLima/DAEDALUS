@@ -20,7 +20,7 @@ const d = await Daedalus.criar();
 console.log(`== fronteira de memoria  (daedalus ${d.versao}, nucleo ${d.hashNucleo})`);
 
 const spec = (nPar, alvo) => ({
-  format_version: 1, seed: 1,
+  format_version: 2, seed: 1,
   graph: { generator: 'microtubule',
            params: { n_par: nPar, n_perp: 13, seam_shift: 3, n_modules: 2 } },
   hamiltonian: { kind: 'adjacency', gamma: 1, normalization: 'none', lanczos_steps: 0 },

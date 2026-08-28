@@ -42,6 +42,51 @@ static void cd(dae_cbuf *B, const char *f, double v)
 static void cu(dae_cbuf *B, const char *f, uint64_t v)
 { char t[64]; ce(B, t, snprintf(t, sizeof(t), f, (unsigned long long)v), (int32_t)sizeof(t) - 1); }
 
+int32_t dae_csv_cabecalho_psi(const dae_spec *S, uint64_t semente_base,
+                              int32_t n, int32_t n_amostras, int32_t n_traj,
+                              char *buf, int32_t cap)
+{
+  dae_cbuf B;
+  int32_t need;
+  char *tmp;
+  if (!S) return 0;
+  B.b = buf; B.cap = cap; B.n = 0;
+  if (cap > 0) buf[0] = '\0';
+
+  cs(&B, "#! daedalus %s\n", DAE_VERSION);
+  cs(&B, "#! core_hash %s\n", DAE_CORE_HASH);
+  cs(&B, "#! implementacao %s\n", "c");
+  cs(&B, "#! conteudo %s\n", "psi_trajetorias");
+  /* A semente-base fica EXPLICITA aqui e nao so dentro do spec: e ela, com o
+     indice da trajetoria, que gera cada fluxo (dae_traj_semente). Sem ela o
+     acervo nao e regeneravel, e um cache que nao se regenera e um acervo. */
+  {
+    char sb[32];
+    int32_t k = 0;
+    uint64_t v = semente_base;
+    char rev[32];
+    if (v == 0) { rev[k++] = '0'; }
+    while (v > 0 && k < 20) { rev[k++] = (char)('0' + (int)(v % 10ULL)); v /= 10ULL; }
+    { int32_t q; for (q = 0; q < k; ++q) sb[q] = rev[k - 1 - q]; sb[k] = '\0'; }
+    cs(&B, "#! semente_base %s\n", sb);
+  }
+  ci(&B, "#! n %d\n", n);
+  ci(&B, "#! n_amostras %d\n", n_amostras);
+  ci(&B, "#! n_traj %d\n", n_traj);
+  cput(&B, "#! layout f64 re[n_amostras*n] depois im[n_amostras*n], por trajetoria\n");
+
+  need = dae_spec_canonical(S, NULL, 0);
+  tmp = (char *)malloc((size_t)need + 1);
+  if (tmp) {
+    dae_spec_canonical(S, tmp, need + 1);
+    cput(&B, "#! spec ");
+    cput(&B, tmp);
+    cput(&B, "\n");
+    free(tmp);
+  }
+  return B.n;
+}
+
 int32_t dae_csv(const dae_spec *S, const dae_graph *G, const dae_metrics *M,
                 const dae_series *R, int incluir_estado, char *buf, int32_t cap)
 {

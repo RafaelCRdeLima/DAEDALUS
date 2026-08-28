@@ -47,7 +47,7 @@ const casos = [
     observables: { target: 239, module_concurrence: true },
   }],
   ['lista de arestas explicita', {
-    format_version: 1, seed: 7,
+    format_version: 2, seed: 7,
     graph: { generator: 'edgelist', n: 6,
              edges: [[0, 1, 1.0], [1, 2, 1.0], [2, 3, 0.5], [3, 4, 1.0], [4, 5, 1.0], [5, 0, 0.5]] },
     hamiltonian: { kind: 'adjacency', gamma: 1, normalization: 'none', lanczos_steps: 0 },

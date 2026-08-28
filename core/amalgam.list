@@ -15,6 +15,7 @@ dae_ham.h
 dae_obs.h
 dae_graph.h
 dae_metrics.h
+dae_traj.h
 dae_spec.h
 dae_run.h
 dae_csv.h
@@ -27,6 +28,7 @@ dae_ham.c
 dae_obs.c
 dae_graph.c
 dae_metrics.c
+dae_traj.c
 dae_spec.c
 dae_run.c
 dae_csv.c

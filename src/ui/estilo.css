@@ -240,3 +240,21 @@ button.primario { border-color: #2C77A8; color: var(--dd-mode-lab-fg); }
   cursor: grab; image-rendering: auto; touch-action: none;
 }
 .mapa canvas.giravel:active { cursor: grabbing; }
+
+/* Os dois modos de saida da fase 2. Radio e nao caixa porque sao mutuamente
+   exclusivos, e o custo fica DENTRO do rotulo — ao lado da escolha, nao numa
+   nota de rodape que ninguem le antes de decidir. */
+.modos { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 4px; }
+.modo {
+  display: grid; grid-template-columns: auto 1fr; gap: 2px 8px;
+  align-items: baseline; padding: 8px 10px; cursor: pointer;
+  border: 1px solid var(--dd-hairline); border-radius: 6px;
+}
+.modo:hover { border-color: var(--dd-mode-lab-fg); }
+.modo.sel { border-color: var(--dd-aegean); background: rgba(23, 85, 124, 0.16); }
+.modo input { grid-row: 1 / 3; align-self: center; }
+.modo_nome { font-weight: 500; }
+.modo_custo { grid-column: 2; font-size: .8125rem; color: var(--dd-icarus); }
+.modo_quando {
+  grid-column: 2; font-size: .75rem; color: var(--dd-fg-muted); line-height: 1.45;
+}

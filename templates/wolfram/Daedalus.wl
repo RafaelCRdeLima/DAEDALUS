@@ -651,8 +651,16 @@ DaedalusExportarCSV[arquivo_String, espec_, rede_, metricas_, prop_, obs_] :=
 
 Options[DaedalusRodar] = {"EscalaImposta" -> Automatic};
 
+DaedalusRodar::semtrajetoria = "Este spec pede `1` trajetórias, e o pacote \
+Wolfram é unitário: ele não implementa o desdobramento de Haken-Strobl. O \
+resultado seria a dinâmica sem ruído, com aparência de resposta. Rode a fase 2 \
+pelo núcleo em C.";
+
 DaedalusRodar[espec_Association, OptionsPattern[]] := Module[
   {rede, met, ham, prop, obs, e = espec},
+  If[Lookup[Lookup[espec, "trajectories", <||>], "n_traj", 0] > 0,
+    Message[DaedalusRodar::semtrajetoria,
+      espec["trajectories"]["n_traj"]]; Abort[]];
   rede = DaedalusRede[e];
   met = DaedalusMetricas[rede];
   ham = DaedalusHamiltoniano[rede, e, "EscalaImposta" -> OptionValue["EscalaImposta"]];
@@ -683,7 +691,13 @@ DaedalusVarredura[espec_Association, {pMin_, pMax_, passos_Integer}, realizacoes
    ========================================================================== *)
 
 DaedalusEspecPadrao[] := <|
-  "format_version" -> 1, "core_hash" -> "", "core_versao" -> "0.1.0", "seed" -> 12345,
+  "format_version" -> 2, "core_hash" -> "", "core_versao" -> "0.1.0", "seed" -> 12345,
+  (* Fase 2. O bloco existe no padrão só para que o parser estrito ACEITE um
+     spec que o traga; este pacote não implementa trajetórias, e diz isso em vez
+     de recusar com "chave desconhecida", que mandaria o leitor procurar erro de
+     digitação onde há funcionalidade ausente. *)
+  "trajectories" -> <|"n_traj" -> 0, "gamma_deph" -> 0., "rho_stride" -> 1,
+                      "output_mode" -> "accumulate_rho"|>,
   "graph" -> <|"generator" -> "path",
     "params" -> <|"n_par" -> 200, "n_perp" -> 13, "seam_shift" -> 3,
       "longitudinal_closed" -> False, "j_par" -> 1.0, "j_perp" -> 1.0,

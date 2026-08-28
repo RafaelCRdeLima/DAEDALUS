@@ -34,8 +34,14 @@
 #error "Daedalus: -ffinite-math-only esta ligado. Ele colapsa o NaN de p_alvo, que e como a ausencia de sitio-alvo se distingue de p_alvo = 0. Ver CONVENTIONS.md, parte 7.2."
 #endif
 
-/* Versão do formato do spec.json. Muda quando o significado de um campo muda. */
-#define DAE_FORMAT_VERSION 1
+/* Versão do formato do spec.json. Muda quando o significado de um campo muda.
+ *
+ * 2 — bloco "trajectories" da fase 2, com "output_mode" obrigatório quando o
+ *     bloco existe. Subiu porque a regra de dae_spec.h manda subir em campo
+ *     novo, e o custo é justamente o ponto: um arquivo da versão 1 não
+ *     descreve o formato 2, e recusá-lo é preferível a interpretá-lo por
+ *     omissão. */
+#define DAE_FORMAT_VERSION 2
 
 /* Teto da concurrence par a par completa: N² entradas em memória. */
 #define DAE_FULL_CONC_MAX 2000

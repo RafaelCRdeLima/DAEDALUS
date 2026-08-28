@@ -8,6 +8,8 @@ import { empacotarLattice, sitioNoTexel } from '../nucleo/indices';
 import { gradienteCss } from '../nucleo/paleta';
 import { bytesDosQuadros, passoParaCaber, passosDosQuadros, quadroDoPasso } from '../nucleo/quadros.ts';
 import { origemImplementacao, reimportar, type Reimportado } from '../nucleo/reimportar.ts';
+import { amostrasDeTempo, bytesAcumularRho, bytesArquivarPsi, formatarBytes,
+         type ModoSaida } from '../nucleo/trajetorias.ts';
 import { SeletorLingua } from './SeletorLingua';
 import { Metricas } from './Metricas';
 import { Secao } from './Secao';
@@ -124,6 +126,14 @@ export default function App() {
      aparece na tela nos dois casos: uma distorção silenciosa seria pior que
      nenhuma vista. */
   const [tuboMetrico, setTuboMetrico] = useState(false);
+  /* Fase 2. `nTraj = 0` é execução unitária e o bloco nem entra no spec.
+     `modoSaida` começa NULO de propósito: os dois modos resolvem problemas
+     diferentes, e escolher por omissão escolheria por quem não sabe que estava
+     escolhendo. Quem valida isso é o parser em C, não esta tela. */
+  const [nTraj, setNTraj] = useState(0);
+  const [gammaDeph, setGammaDeph] = useState(0.1);
+  const [rhoStride, setRhoStride] = useState(10);
+  const [modoSaida, setModoSaida] = useState<ModoSaida | null>(null);
   const [xyEspectral, setXyEspectral] = useState<Float32Array | null>(null);
   const [xyProprio, setXyProprio] = useState<Float32Array | null>(null);
 
@@ -140,16 +150,41 @@ export default function App() {
         : gerador === 'hypercube' ? { dim: 9, ...conn }
         : { n: nGen, ...conn };
     return {
-      format_version: 1, seed: semente,
+      format_version: 2, seed: semente,
       graph: { generator: gerador, params },
       hamiltonian: { kind: ham, gamma, normalization: norm, lanczos_steps: 40 },
       initial: { site: sitio },
       time: { t1, nt },
       observables: { target: alvo, population: false, module_concurrence: true, pop_stride: 1 },
       realizations: 1,
+      /* O bloco só existe quando há trajetórias, e `output_mode` só entra
+         quando foi escolhido: um spec com o campo preenchido por omissão
+         mentiria sobre ter havido escolha. Sem ele, o parser em C recusa com a
+         mensagem certa — a regra mora lá, não aqui. */
+      ...(nTraj > 0
+        ? { trajectories: {
+              n_traj: nTraj, gamma_deph: gammaDeph, rho_stride: rhoStride,
+              ...(modoSaida ? { output_mode: modoSaida } : {}),
+            } }
+        : {}),
     };
   }, [gerador, nPar, nPerp, seam, fechado, jPerp, modulos, wsP, religar, semente,
-      pIn, pOut, nGen, ham, gamma, norm, t1, nt, sitio, alvo]);
+      pIn, pOut, nGen, ham, gamma, norm, t1, nt, sitio, alvo,
+      nTraj, gammaDeph, rhoStride, modoSaida]);
+
+  /* O custo dos dois modos, dos parâmetros ATUAIS. Ele muda quando o usuário
+     mexe em N, no número de trajetórias ou na amostragem — que é o ponto: um
+     número que reage é lido, uma nota de rodapé não. */
+  const custoTraj = useMemo(() => {
+    const n = rede?.n ?? 0;
+    const amostras = amostrasDeTempo(nt, rhoStride);
+    return {
+      amostras,
+      rho: formatarBytes(bytesAcumularRho(n, amostras)),
+      psi: formatarBytes(bytesArquivarPsi(n, amostras, nTraj)),
+      psiPlano: formatarBytes(bytesArquivarPsi(n, amostras, nTraj) * 100),
+    };
+  }, [rede, nt, rhoStride, nTraj]);
 
   /* O passo pedido, elevado ao mínimo que cabe no teto de memória. O custo
      aparece ao lado do controle: guardar um quadro por passo em rede grande
@@ -748,6 +783,44 @@ export default function App() {
           </Secao>
 
           {/* Bronze: tudo que sai daqui e volta de fora. Distinção funcional. */}
+          <Secao titulo={t('sec_trajetorias')}
+                 resumo={nTraj > 0
+                   ? `${nTraj} · ${modoSaida ? t(`tr_${modoSaida === 'accumulate_rho' ? 'rho' : 'psi'}`) : t('tr_sem_modo_curto')}`
+                   : t('tr_desligado')}>
+            {faixa(t('tr_n'), String(nTraj),
+              <input type="range" min={0} max={500} step={10} value={nTraj}
+                     onChange={(e) => setNTraj(+e.target.value)} />)}
+            {nTraj > 0 && <>
+              {faixa(t('tr_gamma'), gammaDeph.toFixed(2),
+                <input type="range" min={0} max={2} step={0.01} value={gammaDeph}
+                       onChange={(e) => setGammaDeph(+e.target.value)} />)}
+              {faixa(t('tr_stride'), `${custoTraj.amostras} ${t('tr_amostras')}`,
+                <input type="range" min={1} max={50} value={rhoStride}
+                       onChange={(e) => setRhoStride(+e.target.value)} />)}
+              {/* RADIO, nao caixa: os modos sao mutuamente exclusivos, e nenhum
+                  e padrao. O custo fica ao lado de cada um, calculado dos
+                  parametros de agora. */}
+              <div className="modos">
+                <label className={modoSaida === 'accumulate_rho' ? 'modo sel' : 'modo'}>
+                  <input type="radio" name="modo_saida" checked={modoSaida === 'accumulate_rho'}
+                         onChange={() => setModoSaida('accumulate_rho')} />
+                  <span className="modo_nome">{t('tr_rho')}</span>
+                  <span className="modo_custo mono">{custoTraj.rho} {t('tr_por_thread')}</span>
+                  <span className="modo_quando">{t('tr_rho_quando')}</span>
+                </label>
+                <label className={modoSaida === 'archive_psi' ? 'modo sel' : 'modo'}>
+                  <input type="radio" name="modo_saida" checked={modoSaida === 'archive_psi'}
+                         onChange={() => setModoSaida('archive_psi')} />
+                  <span className="modo_nome">{t('tr_psi')}</span>
+                  <span className="modo_custo mono">{custoTraj.psi} {t('tr_por_celula')}
+                    {' · '}{custoTraj.psiPlano} {t('tr_plano')}</span>
+                  <span className="modo_quando">{t('tr_psi_quando')}</span>
+                </label>
+              </div>
+              {!modoSaida && <p className="aviso">{t('tr_sem_modo')}</p>}
+            </>}
+          </Secao>
+
           <Secao titulo={t('sec_exportar')} resumo="C++ · Wolfram · Python · CSV">
             <div className="exportar">
               <button onClick={() => exportar('cpp')} disabled={!rede}>C++</button>

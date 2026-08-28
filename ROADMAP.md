@@ -197,7 +197,7 @@ e tolerâncias em CONVENTIONS.md 12.1.
 
 | data | core_hash | resultado |
 |---|---|---|
-| 2026-08-28 | `9cbcc100c8b73b07` | **12/12 OK.** PRNG idêntico (3 sementes × 100 valores). 12 digitais idênticas. `rewire_failed` bate, inclusive os 30 de `completo-religado`. Pior absoluto 9.4e-12, relativo 9.6e-11, amplitude 1.5e-14. Anti-vacuidade 7/7 detectou. |
+| 2026-08-28 | `38a7c906e0794c1d` | **12/12 OK.** PRNG idêntico (3 sementes × 100 valores). 12 digitais idênticas. `rewire_failed` bate, inclusive os 30 de `completo-religado`. Pior absoluto 9.4e-12, relativo 9.6e-11, amplitude 1.5e-14. Anti-vacuidade 7/7 detectou. |
 
 O pior caso de amplitude é a **grade 2D** (n = 240), como se esperava de
 espectro degenerado — κ(V) maior, mais cancelamento na soma espectral.
@@ -346,6 +346,50 @@ que ele falhe, e não faz requisição nenhuma para fora, como o resto do pacote
 Defasagem tipo Haken–Strobl por **trajetórias quânticas com saltos**, mantendo
 vetores `O(N)`. Nunca propagar a matriz densidade densa: `N²` seriam 6,8 M
 elementos em `N = 2600`.
+
+#### Os dois modos de saída, e o acervo de ψ
+
+A escolha entre `accumulate_rho` e `archive_psi` está no `spec.json` (bloco
+`trajectories`, `format_version` 2) e na interface, como **radio** — são
+mutuamente exclusivos, e **não há padrão implícito**: o bloco existir sem
+`output_mode` é erro do parser, com mensagem dizendo o que fazer. Escolher por
+omissão escolheria por quem não sabia que estava escolhendo, e a escolha errada
+só aparece quando o observável mudar e os ψ não existirem mais — o que neste
+projeto já aconteceu uma vez.
+
+O custo aparece **ao lado de cada opção**, calculado dos parâmetros de agora e
+não de uma nota de rodapé: em N = 520 com 40 amostras, 173 MB por thread para
+acumular, 67 MB por célula (6,7 GB no plano de 100) para arquivar. As duas leis
+são diferentes — N² contra N — e é essa diferença que faz haver escolha:
+`src/nucleo/trajetorias.test.ts` mede o ponto de virada.
+
+**O acervo de ψ é CACHE, não acervo.** Ele carrega o mesmo cabeçalho de
+procedência do CSV — `#! spec` canônico, `#! core_hash`, `#! implementacao` — e
+mais a `#! semente_base`, que com o índice da trajetória regenera cada fluxo
+(`dae_traj_semente`). Consequência prática, e é a que importa:
+
+> **Apagar o acervo é seguro.** Regenerá-lo custa tempo de CPU, não informação.
+> Nada nele é irrecuperável a partir do par (spec, semente-base), e é
+> exatamente por isso que a semente-base fica explícita no cabeçalho em vez de
+> só implícita dentro do spec. Um cache que não se regenera é um acervo, e um
+> acervo exige política de backup — que este arquivo não tem e não precisa.
+
+**A ordem da soma é contrato.** `dae_rho_acc_somar` recusa índice fora de
+sequência (`DAE_ERR_PARAM`) em vez de devolver outro número: soma de ponto
+flutuante não é associativa, e a igualdade bit a bit entre os dois modos morreria
+em silêncio se a ordem virasse consequência do laço. Por isso a paralelização é
+**por célula da grade**, não por trajetória dentro de uma célula — acumular por
+thread e reduzir em ordem de thread pareceria resolver e não resolve, porque o
+número de threads entraria no resultado.
+
+`t97_modos_saida` amarra os dois modos com 35 verificações, incluindo as duas
+companheiras que o usuário exigiu: os observáveis são não triviais e têm valor de
+referência (em γ = 0 o ensemble reproduz o unitário que `dae_obs` calcula por
+outro caminho), e sabotagens deliberadas — precisão de f32 no acervo, acervo
+truncado, soma fora de ordem — têm de morder. **Duas versões da sabotagem foram
+vazias antes de morder**, e o teste documenta as duas: perturbar a amostra t = 0,
+onde quase toda amplitude é exatamente zero, e perturbar 1 ULP numa média de 24
+trajetórias, que fica abaixo da resolução do próprio acumulado.
 
 **Ressalva, e ela é sobre o que a regra proíbe.** A regra é sobre PROPAGAR: o
 estado continua sendo vetor `O(N)` em cada trajetória. Ela não proíbe usar uma

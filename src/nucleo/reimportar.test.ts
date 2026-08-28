@@ -9,7 +9,7 @@ import { origemImplementacao, reimportar } from './reimportar.ts';
 import { Daedalus } from '../../wasm/build/daedalus.mjs';
 
 const SPEC = JSON.stringify({
-  format_version: 1, seed: 3,
+  format_version: 2, seed: 3,
   graph: { generator: 'cycle', params: { n: 24 } },
   hamiltonian: { kind: 'adjacency', gamma: 1, normalization: 'none', lanczos_steps: 0 },
   initial: { site: 0 }, time: { t1: 4, nt: 8 },
@@ -53,7 +53,7 @@ describe('procedencia obrigatoria', () => {
   });
 
   it('RECUSA um spec que nao passa no parser estrito em C', () => {
-    const ruim = csvBom.replace(/#! spec .*/, '#! spec {"format_version":1,"graph":{"seam":3}}');
+    const ruim = csvBom.replace(/#! spec .*/, '#! spec {"format_version":2,"graph":{"seam":3}}');
     const r = reimportar('a.csv', ruim, HASH(), validar);
     expect(r.utilizavel).toBe(false);
     expect(r.avisos[0].chave).toBe('av_spec_invalido');

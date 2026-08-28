@@ -19,6 +19,7 @@
 #include "dae_version.generated.h"
 #include "dae_ham.h"
 #include "dae_obs.h"
+#include "dae_traj.h"
 #include "dae_types.h"
 
 typedef struct {
@@ -47,6 +48,14 @@ typedef struct {
   int            want_pop, want_conc_mod, want_conc_full;
   int32_t        pop_stride;
   int32_t        realizations;       /* varredura de semente; 1 = execução única */
+
+  /* Fase 2. `n_traj == 0` significa execução unitária, sem trajetórias, e o
+     bloco "trajectories" pode estar ausente. Se o bloco EXISTE, `output_mode`
+     é obrigatório: ver dae_traj.h para por que não há padrão implícito. */
+  int32_t        n_traj;
+  double         gamma_deph;
+  int32_t        rho_stride;
+  dae_saida_traj saida_traj;
 } dae_spec;
 
 void       dae_spec_default(dae_spec *S);

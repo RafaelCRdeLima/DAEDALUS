@@ -7,6 +7,6 @@
 #define DAE_VERSION_GENERATED_H
 
 #define DAE_VERSION   "0.1.0"
-#define DAE_CORE_HASH "9cbcc100c8b73b07"
+#define DAE_CORE_HASH "38a7c906e0794c1d"
 
 #endif /* DAE_VERSION_GENERATED_H */

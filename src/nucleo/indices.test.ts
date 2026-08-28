@@ -22,7 +22,7 @@ function propagar(seamShift: number, t1: number, passos: number): Float32Array {
   /* O mesmo spec.json que o .cpp exportado embute: a fixture exercita o caminho
      de verdade, nao um atalho de teste. */
   d.carregar({
-    format_version: 1, seed: 1,
+    format_version: 2, seed: 1,
     graph: { generator: 'microtubule',
              params: { n_par: N_PAR, n_perp: N_PERP, seam_shift: seamShift, n_modules: 1 } },
     hamiltonian: { kind: 'adjacency', gamma: 1, normalization: 'none', lanczos_steps: 0 },

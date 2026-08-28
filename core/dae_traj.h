@@ -1,0 +1,122 @@
+/* dae_traj.h — ensemble de trajetórias com defasagem pura, e os DOIS modos de
+ * saída.
+ *
+ * ---------------------------------------------------------------------------
+ * POR QUE HÁ DOIS MODOS, E POR QUE NENHUM É PADRÃO
+ *
+ * O observável central da fase 2 é rho_ij = <psi_i psi_j*> promediado sobre
+ * trajetórias, e só DEPOIS tomado em módulo. Calcular a coerência por trajetória
+ * e promediar mediria espalhamento de amplitude, não coerência: cada trajetória
+ * permanece pura. Ver docs/daedalus-estado-da-arte.md, seção 5.1.
+ *
+ *   ACUMULAR_RHO  soma rho durante a execução e descarta cada psi no fim da
+ *                 trajetória. Memória: n_amostras * N^2 * 16 B por thread.
+ *                 Escolha para varredura ampla, com os observáveis já definidos.
+ *
+ *   ARQUIVAR_PSI  entrega cada psi ao chamador, que grava; rho é montado na
+ *                 análise. Disco: n_amostras * N * 16 B * n_traj por célula.
+ *                 Escolha quando a definição do observável ainda puder mudar —
+ *                 o que neste projeto já aconteceu uma vez.
+ *
+ * Não há padrão implícito: `DAE_SAIDA_INDEFINIDA` é ERRO quando há trajetórias.
+ * Um padrão silencioso escolheria por quem não sabe que estava escolhendo, e a
+ * escolha errada só aparece meses depois, quando o observável mudar e os psi
+ * não existirem mais.
+ *
+ * ---------------------------------------------------------------------------
+ * A ORDEM DA SOMA É CONTRATO, NÃO CONSEQUÊNCIA DO LAÇO
+ *
+ * Soma de ponto flutuante não é associativa. Para os dois modos darem o MESMO
+ * resultado bit a bit, as contribuições têm de entrar na mesma ordem — e essa
+ * ordem é o índice crescente da trajetória, exigido por `dae_rho_acc_somar`,
+ * que devolve DAE_ERR_PARAM se o índice não for o esperado. Não é comentário
+ * pedindo boa-fé: quem paralelizar dentro de uma célula e somar fora de ordem
+ * recebe erro, em vez de receber outro número.
+ *
+ * POR ISSO A PARALELIZAÇÃO É POR CÉLULA DA GRADE, não por trajetória dentro de
+ * uma célula. Acumular por thread e reduzir em ordem de thread pareceria
+ * resolver, e não resolve: o número de threads entraria no resultado, e o mesmo
+ * spec com OMP_NUM_THREADS diferente daria números diferentes. Com uma célula
+ * por thread, cada acumulador é privado, a soma interna é serial e ordenada, e
+ * a reprodutibilidade não depende do escalonador.
+ *
+ * ---------------------------------------------------------------------------
+ * O DESDOBRAMENTO
+ *
+ * Defasagem pura, L_j = sqrt(gamma)|j><j|. Como sum_j L_j^dag L_j = gamma * I, a
+ * taxa total de salto NÃO depende do estado: os tempos de espera são
+ * exponenciais de taxa gamma, a evolução entre saltos é unitária, e o salto
+ * projeta em |j> com probabilidade |psi_j|^2. Não há aproximação de grade aqui —
+ * os saltos caem em tempos arbitrários e o propagador aceita dt arbitrário.
+ *
+ * Isto NÃO dispensa a companheira de verificação: a média de trajetórias tem de
+ * reproduzir o Liouvilliano vetorizado em N pequeno antes que qualquer física
+ * seja afirmada. Ver docs/daedalus-estado-da-arte.md, seção 5.7.
+ */
+#ifndef DAE_TRAJ_H
+#define DAE_TRAJ_H
+
+#include "dae_cheb.h"
+#include "dae_csr.h"
+#include "dae_types.h"
+
+typedef enum {
+  DAE_SAIDA_INDEFINIDA = 0,   /* nao ha padrao implicito aceitavel */
+  DAE_SAIDA_ACUMULAR_RHO,
+  DAE_SAIDA_ARQUIVAR_PSI
+} dae_saida_traj;
+
+/* Acumulador de rho. Uma matriz N x N complexa por amostra de tempo. */
+typedef struct {
+  int32_t  n, n_amostras;
+  double  *re, *im;      /* n_amostras * n * n, ordem linha-maior */
+  int32_t  proxima;      /* indice da proxima trajetoria aceita   */
+  int32_t  somadas;
+} dae_rho_acc;
+
+dae_status dae_rho_acc_init(dae_rho_acc *A, int32_t n, int32_t n_amostras);
+void       dae_rho_acc_free(dae_rho_acc *A);
+
+/* Soma psi psi^dag da trajetoria `idx`. EXIGE idx == A->proxima. */
+dae_status dae_rho_acc_somar(dae_rho_acc *A, int32_t idx,
+                             const double *re, const double *im);
+
+/* Divide por `somadas`, transformando a soma em media. Idempotente nao e:
+ * chamar duas vezes divide duas vezes. */
+void       dae_rho_acc_finalizar(dae_rho_acc *A);
+
+/* Bytes de UMA trajetoria: n_amostras * n amplitudes, re e im intercalados por
+ * vetor (primeiro todos os re da amostra 0, depois todos os im, e assim por
+ * diante). O chamador grava; o nucleo nao abre arquivo (dae_types.h, regra 3). */
+typedef dae_status (*dae_traj_sink)(void *user, int32_t idx,
+                                    const double *re, const double *im,
+                                    int32_t n_amostras, int32_t n);
+
+typedef struct {
+  double   gamma_deph;    /* taxa de defasagem                        */
+  int32_t  n_traj;        /* numero de trajetorias                    */
+  int32_t  rho_stride;    /* amostra o tempo a cada quantos passos    */
+  int32_t  nt;            /* passos da grade                          */
+  double   dt;
+  int32_t  sitio_inicial;
+  dae_saida_traj saida;
+} dae_traj_cfg;
+
+/* Quantas amostras de tempo a configuracao produz. */
+int32_t    dae_traj_amostras(const dae_traj_cfg *cfg);
+
+/* Roda o ensemble. Em ACUMULAR_RHO, `A` recebe as contribuicoes e `sink` e
+ * ignorado; em ARQUIVAR_PSI, `sink` recebe cada trajetoria e `A` e ignorado.
+ * A DINAMICA E A MESMA nos dois: o modo escolhe o destino de psi, nunca o
+ * caminho que psi percorreu. E o que torna a igualdade bit a bit possivel. */
+dae_status dae_traj_ensemble(const dae_traj_cfg *cfg, uint64_t semente_base,
+                             dae_cheb *W, const dae_csr *H,
+                             dae_rho_acc *A, dae_traj_sink sink, void *user);
+
+/* Semente da trajetoria `idx`, derivada da base. Exposta porque a
+ * reprodutibilidade sob OpenMP depende de cada trajetoria ter fluxo PROPRIO e
+ * derivavel do indice — nunca de um gerador compartilhado, cujo consumo
+ * dependeria da ordem em que as threads chegam. */
+uint64_t   dae_traj_semente(uint64_t base, int32_t idx);
+
+#endif /* DAE_TRAJ_H */

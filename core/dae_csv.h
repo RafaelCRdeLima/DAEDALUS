@@ -28,4 +28,18 @@
 int32_t dae_csv(const dae_spec *S, const dae_graph *G, const dae_metrics *M,
                 const dae_series *R, int incluir_estado, char *buf, int32_t cap);
 
+/* Cabeçalho de procedência do ACERVO DE PSI do modo `archive_psi`. Mesmas
+ * linhas `#!` do CSV — spec canônico, core_hash, implementacao — mais a
+ * semente-base e o formato do bloco binário que vem depois.
+ *
+ * É o mesmo emissor de propósito: um acervo com procedência própria, escrita
+ * noutro lugar, divergiria do CSV sem que nada quebrasse, e um arquivo que diz
+ * de qual simulação veio é a única coisa que separa cache de lixo.
+ *
+ * O acervo é CACHE REPRODUZÍVEL, não acervo: apagá-lo é seguro, e regenerá-lo
+ * custa tempo de CPU, não informação. Ver ROADMAP.md. */
+int32_t dae_csv_cabecalho_psi(const dae_spec *S, uint64_t semente_base,
+                              int32_t n, int32_t n_amostras, int32_t n_traj,
+                              char *buf, int32_t cap);
+
 #endif /* DAE_CSV_H */
