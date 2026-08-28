@@ -1,0 +1,25 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+
+  // Daedalus publicado como BUNDLE ESTATICO, sem Worker de codigo.
+  //
+  // Nao ha "main": nao existe servidor, nao existe backend, nao existe API.
+  // Isso nao e economia, e requisito: o programa calcula tudo no navegador do
+  // usuario, e um endpoint aqui seria um lugar por onde dado de pesquisa
+  // poderia sair da maquina dele sem que ninguem tivesse pedido.
+  //
+  // O repositorio e privado; o que sobe e o compilado. O nucleo em C aparece no
+  // bundle porque o exportador precisa dele para emitir o .cpp autocontido —
+  // e o mesmo texto que vai no arquivo exportado, por projeto.
+  "name": "daedalus",
+  "account_id": "16e69654a3b261532a4433a5c0ea13d0",
+  "compatibility_date": "2026-08-28",
+
+  "assets": {
+    "directory": "./dist",
+    // Duas paginas de verdade (o app e /tutorial/), nao uma SPA com rotas no
+    // cliente. "single-page-application" devolveria o app em qualquer caminho
+    // errado, o que faz um endereco digitado errado parecer que funcionou.
+    "not_found_handling": "none"
+  }
+}

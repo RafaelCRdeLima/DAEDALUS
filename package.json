@@ -21,6 +21,7 @@
     "wasm": "make -C native wasm",
     "ci": "npm run hash && make -C native test && make -C native cxx-check && npm run typecheck && npm test && npm run build && npm run fumaca",
     "fumaca": "sh tools/fumaca.sh",
+    "publicar": "npm run build && npx wrangler deploy",
     "recursos": "node tools/amalgamate.mjs --ts",
     "prebuild": "node tools/hash_core.mjs && node tools/amalgamate.mjs --ts",
     "pretest": "node tools/hash_core.mjs",

@@ -246,6 +246,29 @@ paridade assere que as quatro línguas têm exatamente as mesmas chaves.
 duas disciplinas metodológicas, o que o rodapé está dizendo, a costura, e por
 que azul e bronze não são decoração.
 
+### Publicação
+
+O compilado está em **https://daedalus.rafael-nuclear.workers.dev**, como bundle
+estático em Cloudflare Workers (`wrangler.jsonc`, `npm run publicar`). **Sem
+`main`**: não há Worker de código, não há backend, não há API. Isso não é
+economia — um endpoint ali seria um caminho por onde dado de pesquisa poderia
+sair da máquina do usuário sem ninguém ter pedido.
+
+Conferido no que está publicado, não no que está previsto:
+
+- o teste de fumaça roda contra a URL publicada e passa — Σ|ψ|² = 1 com desvio
+  8.0e-14, 100% de pixels vivos, núcleo `9cbcc100c8b73b07`;
+- **10 requisições no total, todas para a própria origem, e zero depois de a
+  aplicação ficar pronta.** Fontes auto-hospedadas, nenhum CDN, nenhuma
+  telemetria. "Eu não escrevi nenhum `fetch`" não é verificação;
+- sem sourcemaps e sem `sourceMappingURL`: o repositório é privado e o que sobe
+  é o compilado. O núcleo em C aparece no bundle porque o exportador precisa
+  dele para emitir o `.cpp` autocontido — é o mesmo texto do arquivo exportado,
+  por projeto;
+- `/tutorial/` responde, e caminho inexistente devolve 404 em vez do aplicativo.
+  Com `single-page-application` um endereço digitado errado pareceria ter
+  funcionado.
+
 ### O que fica para depois
 
 - reimportação de **HDF5** (hoje só CSV);
