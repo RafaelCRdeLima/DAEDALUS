@@ -187,6 +187,126 @@ static double c_rel(const dae_rho_acc *A, const dae_graph *G, int32_t s)
   return sd - sr;
 }
 
+/* UMA CELULA DA VARREDURA, em BLOCOS.
+ *
+ * O valor reportado sai do ensemble INTEIRO (menor vies, que cai como 1/sqrt(n));
+ * a barra de erro e o vies saem da dispersao entre os R blocos. Isso da tres
+ * coisas que nao se recuperam depois sem re-rodar, e por isso vao no CSV:
+ *
+ *   valor      C_inter corrigido por Wardle-Kronberg, no n cheio
+ *   sd         desvio DA MEDIA, = sd entre blocos / sqrt(R)
+ *   vies       residual estimado. Com C(n) = C_inf + B/sqrt(n), a media dos
+ *              blocos (cada um de n/R) fica em C_inf + B*sqrt(R)/sqrt(n), entao
+ *              vies_no_n_cheio = (media_blocos - cheio)/(sqrt(R) - 1). Sem
+ *              ajuste nenhum, so a algebra da lei ja medida.
+ *
+ * E AS DUAS SUPERFICIES SAEM DO MESMO CONJUNTO. C_inter e eficiencia de
+ * transferencia sao calculadas nos MESMOS blocos, entao a covariancia entre
+ * elas e mensuravel — e a distancia entre as duas cristas, que e o observavel
+ * de H2b, tem barra CORRELACIONADA. Parte do ruido cancela na diferenca, e a
+ * distancia fica medida com precisao melhor que a de qualquer uma isolada. Se
+ * viessem de rodadas separadas isso seria impossivel de recuperar.
+ *
+ * Dois acumuladores em memoria, nao R: um do bloco corrente e um do total. */
+static int rodar_celula(dae_spec *S, int32_t n_total, int32_t blocos)
+{
+  dae_graph G;
+  dae_csr H;
+  dae_cheb W;
+  dae_metrics M;
+  dae_metrics_cfg mc;
+  dae_traj_cfg cfg;
+  dae_rho_acc cheio, bloco;
+  dae_status st;
+  double *ci_b, *ef_b;
+  double ci_cheio, ef_cheio, mci = 0.0, mef = 0.0, sci = 0.0, sef = 0.0, cov = 0.0;
+  double t0 = agora();
+  int32_t na, b, i, por_bloco = n_total / blocos;
+
+  { dae_gen_params gp = S->gen; gp.seed = S->seed; st = dae_graph_build(&G, &gp); }
+  if (st != DAE_OK) { fprintf(stderr, "grafo: %s\n", dae_strerror(st)); return 1; }
+  memset(&mc, 0, sizeof(mc));
+  if (dae_metrics_compute(&G, &mc, &M) != DAE_OK) { fprintf(stderr, "metricas\n"); return 1; }
+  st = dae_hamiltonian(&H, &G.A, S->ham, S->gamma, S->norm, S->lanczos_steps, NULL);
+  if (st != DAE_OK) { fprintf(stderr, "H: %s\n", dae_strerror(st)); return 1; }
+  st = dae_cheb_init(&W, &H, S->lanczos_steps);
+  if (st != DAE_OK) { fprintf(stderr, "cheb: %s\n", dae_strerror(st)); return 1; }
+
+  cfg.gamma_deph = S->gamma_deph; cfg.rho_stride = S->rho_stride;
+  cfg.nt = S->nt; cfg.dt = S->t1 / (double)S->nt;
+  cfg.sitio_inicial = S->init_site >= 0 ? S->init_site : 0;
+  cfg.saida = DAE_SAIDA_ACUMULAR_RHO; cfg.n_traj = por_bloco;
+  na = dae_traj_amostras(&cfg);
+
+  if (dae_rho_acc_init_wk(&cheio, G.n, na) != DAE_OK) return 1;
+  if (dae_rho_acc_init_wk(&bloco, G.n, na) != DAE_OK) return 1;
+  ci_b = (double *)calloc((size_t)blocos, sizeof(double));
+  ef_b = (double *)calloc((size_t)blocos, sizeof(double));
+
+  for (b = 0; b < blocos; ++b) {
+    size_t k, tot = (size_t)na * (size_t)G.n * (size_t)G.n;
+    int32_t s;
+    /* Semente-base propria por bloco, derivada do indice: fluxo compartilhado
+       faria o resultado depender da ordem de execucao. */
+    bloco.proxima = 0; bloco.somadas = 0;
+    memset(bloco.re, 0, tot * sizeof(double));
+    memset(bloco.im, 0, tot * sizeof(double));
+    memset(bloco.m2, 0, tot * sizeof(double));
+    st = dae_traj_ensemble(&cfg, S->seed + 1000003ULL * (uint64_t)(b + 1),
+                           &W, &H, &bloco, NULL, NULL);
+    if (st != DAE_OK) { fprintf(stderr, "bloco %d: %s\n", b, dae_strerror(st)); return 1; }
+    /* soma no total ANTES de normalizar o bloco */
+    for (k = 0; k < tot; ++k) {
+      cheio.re[k] += bloco.re[k]; cheio.im[k] += bloco.im[k]; cheio.m2[k] += bloco.m2[k];
+    }
+    cheio.somadas += bloco.somadas;
+    dae_rho_acc_finalizar(&bloco);
+    ci_b[b] = c_inter_wk(&bloco, &G, na - 1, por_bloco);
+    ef_b[b] = 0.0;
+    if (S->target >= 0 && S->target < G.n) {
+      for (s = 0; s < na; ++s)
+        ef_b[b] += bloco.re[(size_t)s * (size_t)G.n * (size_t)G.n +
+                            (size_t)S->target * (size_t)G.n + (size_t)S->target];
+      ef_b[b] /= (double)na;
+    }
+  }
+  dae_rho_acc_finalizar(&cheio);
+  ci_cheio = c_inter_wk(&cheio, &G, na - 1, n_total);
+  ef_cheio = 0.0;
+  if (S->target >= 0 && S->target < G.n) {
+    int32_t s;
+    for (s = 0; s < na; ++s)
+      ef_cheio += cheio.re[(size_t)s * (size_t)G.n * (size_t)G.n +
+                           (size_t)S->target * (size_t)G.n + (size_t)S->target];
+    ef_cheio /= (double)na;
+  }
+
+  for (i = 0; i < blocos; ++i) { mci += ci_b[i]; mef += ef_b[i]; }
+  mci /= blocos; mef /= blocos;
+  for (i = 0; i < blocos; ++i) {
+    sci += (ci_b[i] - mci) * (ci_b[i] - mci);
+    sef += (ef_b[i] - mef) * (ef_b[i] - mef);
+    cov += (ci_b[i] - mci) * (ef_b[i] - mef);
+  }
+  sci = sqrt(sci / (blocos - 1)); sef = sqrt(sef / (blocos - 1));
+  cov /= (blocos - 1);
+
+  printf("%.6g,%.6g,%.17g,%.17g,%d,%d,%d,%.17g,%.17g,%.17g,%.17g,%.17g,%.17g,%.17g,%.17g,%d,%.1f\n",
+         S->gen.ws_p, S->gamma_deph, M.lambda2, M.modularity_Q,
+         G.n, n_total, blocos,
+         ci_cheio, sci / sqrt((double)blocos), (mci - ci_cheio) / (sqrt((double)blocos) - 1.0),
+         ef_cheio, sef / sqrt((double)blocos), (mef - ef_cheio) / (sqrt((double)blocos) - 1.0),
+         cov / (double)blocos,
+         (sci > 0 && sef > 0) ? cov / (sci * sef) : 0.0,
+         M.lambda2_converged, agora() - t0);
+  fflush(stdout);
+
+  free(ci_b); free(ef_b);
+  dae_rho_acc_free(&cheio); dae_rho_acc_free(&bloco);
+  dae_cheb_free(&W); dae_csr_free(&H); dae_graph_free(&G);
+  return 0;
+}
+
 int main(int argc, char **argv)
 {
   dae_spec S;
@@ -200,7 +320,7 @@ int main(int argc, char **argv)
   char *texto = NULL;
   long tam;
   int32_t niveis[16], nn = 0, replicas = 8, i, k, r, na;
-  int quer_crel = 0, grafo_varia = 0;
+  int quer_crel = 0, grafo_varia = 0, celula = 0, n_total = 63000, blocos = 16;
 
   if (argc < 2) {
     fprintf(stderr,
@@ -217,6 +337,9 @@ int main(int argc, char **argv)
        entre realizacoes da religacao — que nao esta naquele numero e
        provavelmente domina em p alto. */
     else if (strcmp(argv[i], "--grafo-varia") == 0) grafo_varia = 1;
+    else if (strcmp(argv[i], "--celula") == 0) celula = 1;
+    else if (strcmp(argv[i], "--n") == 0 && i + 1 < argc) n_total = atoi(argv[++i]);
+    else if (strcmp(argv[i], "--blocos") == 0 && i + 1 < argc) blocos = atoi(argv[++i]);
     else if (strcmp(argv[i], "--niveis") == 0 && i + 1 < argc) {
       char *p = argv[++i]; nn = 0;
       while (*p && nn < 16) {
@@ -240,6 +363,8 @@ int main(int argc, char **argv)
     fprintf(stderr, "%s:%d:%d: %s\n", argv[1], (int)err.line, (int)err.col, err.msg);
     return 1;
   }
+  if (celula) { int r2 = rodar_celula(&S, n_total, blocos); dae_spec_free(&S); return r2; }
+
   { dae_gen_params gp = S.gen; gp.seed = S.seed; st = dae_graph_build(&G, &gp); }
   if (st != DAE_OK) { fprintf(stderr, "grafo: %s\n", dae_strerror(st)); return 1; }
   st = dae_hamiltonian(&H, &G.A, S.ham, S.gamma, S.norm, S.lanczos_steps, NULL);

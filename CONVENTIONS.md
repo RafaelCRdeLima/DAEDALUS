@@ -412,6 +412,17 @@ que procuraram X e falharam, senão a ausência de evidência não mostra onde p
 Aplicado em `bibliografia/TRIAGEM.md`, que traz as duas coisas: a tabela das 13 consultas
 com o número de resultados de cada uma, e a conferência da extração antes das contagens.
 
+**Corolário sobre COBERTURA.** Duas vezes na fase 2 a instrumentação revelou algo que ela não
+tinha sido construída para procurar, e as duas vezes vieram de pedidos por cobertura, não por
+investigação: cinco pontos em γ em vez de dois, e `p` alto com o grafo variando. Nos dois
+casos o achado apareceu no extremo da faixa — o colapso do Richardson só aparece onde o viés
+é grande e o valor verdadeiro é pequeno.
+
+A lição prática é mais estreita do que "meça bastante": **cobertura não serve só para validar
+a faixa, serve para descobrir onde a faixa acaba.** Um portão medido num ponto só diz que ele
+funciona naquele ponto; medido nos extremos, ele diz onde para de funcionar — e é essa
+segunda informação que impede que a extrapolação seja feita por otimismo.
+
 ### 10.1.7 Toda comparação numérica declara a sua RESOLUÇÃO
 
 Uma tolerância diz o que a comparação aceita. Ela não diz o que a comparação

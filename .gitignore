@@ -11,3 +11,6 @@ src/export/recursos.gerado.ts
 # partir de (spec, semente-base). Apaga-los e seguro, e custa CPU, nao
 # informacao. Ver ROADMAP.md.
 specs/lindblad/*.csv
+
+# A varredura em si e resultado, e vai para resultados/. Os specs das 49
+# celulas ficam versionados; o CSV de saida entra quando estiver completo.

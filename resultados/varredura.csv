@@ -1,0 +1,11 @@
+#! daedalus 0.1.0
+#! core_hash daedalus 0.1.0  core 60a4dce01a4e6fb8  (26 arquivos)
+#! implementacao c
+#! conteudo varredura_fase2
+#! grade 7x7
+#! n_traj 63000
+#! blocos 16
+#! estimador wardle_kronberg
+# valor no n cheio; sd e o DESVIO DA MEDIA; vies e o residual estimado
+# cov e corr sao entre C_inter e ef NO MESMO conjunto de execucoes
+p,gamma,lambda2,Q,N,n_traj,blocos,c_inter,sd_c_inter,vies_c_inter,ef,sd_ef,vies_ef,cov,corr,lambda2_ok,segundos
