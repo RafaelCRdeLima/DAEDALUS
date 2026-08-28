@@ -6,3 +6,8 @@ src/export/recursos.gerado.ts
 *.o
 *.wasm
 *.core
+
+# Os rho de specs/lindblad/ sao CACHE: regenerados por `daedalus traj` a
+# partir de (spec, semente-base). Apaga-los e seguro, e custa CPU, nao
+# informacao. Ver ROADMAP.md.
+specs/lindblad/*.csv

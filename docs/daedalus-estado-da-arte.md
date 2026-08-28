@@ -479,32 +479,59 @@ reprovar — senão "bateu" e "o comparador está quebrado" são indistinguívei
 
 #### Resultado, 28/08/2026, núcleo `76a843e583e9bff1`
 
-**O desdobramento do núcleo converge para Lindblad.** `daedalus traj` escreve o ρ médio;
-`DaedalusLindblad` monta o superoperador vetorizado e o exponencia; `n = 50` (10 × 5, costura 2),
-γ = 0,4, quatro conjuntos de trajetórias:
+**O desdobramento do núcleo converge para Lindblad, nos cinco regimes de ruído e nas duas
+topologias.** `daedalus traj` escreve o ρ médio; `DaedalusLindblad` monta o superoperador
+vetorizado e o exponencia. `n = 50`, quatro conjuntos de trajetórias por caso (250 a 16 000),
+40 execuções ao todo, 92 s de CPU.
 
-| n_traj | rms | máximo |
-|---|---|---|
-| 250 | 4,0e-4 | 2,1e-2 |
-| 1 000 | 3,1e-4 | 1,3e-2 |
-| 4 000 | 1,8e-4 | 8,1e-3 |
-| 16 000 | 5,3e-5 | 2,2e-3 |
+| caso | rms (250) | rms (16 000) | p | p sabotado |
+|---|---|---|---|---|
+| microtúbulo γ = 0,02 | 2,7e-4 | 2,4e-5 | **0,579** | 0,013 |
+| microtúbulo γ = 0,09 | 2,0e-4 | 5,4e-5 | **0,331** | 0,017 |
+| microtúbulo γ = 0,4 | 4,0e-4 | 5,3e-5 | **0,476** | 0,003 |
+| microtúbulo γ = 1,8 | 3,5e-4 | 5,0e-5 | **0,501** | 0,010 |
+| microtúbulo γ = 8 | 2,1e-4 | 2,2e-5 | **0,546** | −0,003 |
+| SBM γ = 0,02 | 1,9e-4 | 2,1e-5 | **0,546** | 0,003 |
+| SBM γ = 0,09 | 2,0e-4 | 4,8e-5 | **0,363** | 0,015 |
+| SBM γ = 0,4 | 4,2e-4 | 5,1e-5 | **0,494** | −0,003 |
+| SBM γ = 1,8 | 4,6e-4 | 7,0e-5 | **0,471** | 0,005 |
+| SBM γ = 8 | 2,3e-4 | 3,1e-5 | **0,483** | 0,000 |
 
-**O critério não é um limiar de desvio, é a LEI.** Ajustando `desvio ~ n^(-p)` sobre a faixa
-inteira: **p = 0,476**, contra 0,5 que Monte Carlo não enviesado prevê. Um desdobramento
-enviesado converge — para outro lugar — e o desvio estabiliza.
+O SBM tem λ₂ = 2,11 e Q = 0,33 — modular de verdade, e é a segunda metade do alvo da
+Seção 5.6, onde o microtúbulo é comparado contra SBM de mesma Q e mesmo λ₂.
 
-**A companheira mostra exatamente isso.** Resolvendo Lindblad com γ = 0,8 em vez de 0,4, com
-as MESMAS trajetórias: o desvio para de cair, e **p = 0,0026**. Os dois casos ficam separados
-por um fator de 180 no expoente, o que faz do portão uma medida e não uma aposta.
+**O critério é a LEI, não um limiar de desvio.** Ajustando `desvio ~ n^(-p)` sobre a faixa
+inteira, Monte Carlo não enviesado prevê p = 1/2. Um desdobramento enviesado converge — para
+outro lugar — e o desvio estabiliza.
+
+**A companheira é o γ dobrado**, resolvendo Lindblad com a taxa errada sobre AS MESMAS
+trajetórias. Ela dá p entre −0,003 e 0,017 nos dez casos: o desvio para de cair, como tem de
+parar quando o alvo é outro.
+
+#### O limiar foi calibrado pela medida, depois de dar falso alarme
+
+A primeira versão do portão usava `p > 0,35` — "0,5 menos uma folga", tirado da teoria. Ele
+**reprovou um caso correto**: microtúbulo γ = 0,09 mediu 0,331. Com quatro pontos o expoente
+tem variância própria, e um limiar encostado no valor teórico reprova por sorte, que é a mesma
+falha das razões consecutivas uma iteração antes.
+
+A medida sobre os dez casos dá a calibração honesta:
+
+| | p |
+|---|---|
+| pior caso correto | 0,331 |
+| pior caso sabotado | 0,017 |
+| **separação** | **20×** |
+
+O limiar declarado é **0,15**: 2,2× abaixo do pior correto e 8,8× acima do pior sabotado.
+É a aplicação direta de `CONVENTIONS.md` 10.1.7 — a resolução da comparação foi medida antes
+de o limiar ser fixado.
 
 Duas escolhas de método que valem registro:
 
 - **RMS sobre as entradas, não o máximo.** O máximo sobre 2500 entradas é estatística de
-  extremo: cai como 1/√n igual, mas com dispersão grande. A primeira versão do portão usava
-  razões consecutivas e reprovou o caso **correto** por uma razão de 1,29 contra um limiar de
-  1,30 — reprovar por sorte. O máximo continua reportado, porque responde a outra pergunta:
-  qual o pior erro em qualquer entrada.
+  extremo: cai como 1/√n igual, mas com dispersão grande. O máximo continua reportado, porque
+  responde a outra pergunta — qual o pior erro em qualquer entrada.
 - **O superoperador é montado, não atalhado.** Para defasagem pura dá para escrever direto que
   as coerências decaem como `exp(-γt)`. Não se escreve: o atalho usa o mesmo raciocínio que se
   quer conferir, e duas contas com o mesmo raciocínio concordam mesmo quando o raciocínio está

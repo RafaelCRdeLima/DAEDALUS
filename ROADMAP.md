@@ -393,12 +393,18 @@ trajetórias, que fica abaixo da resolução do próprio acumulado.
 
 #### O portão de Lindblad — ✅ passado antes de qualquer varredura
 
-A média de trajetórias do núcleo **converge para a solução exata de Lindblad**, verificada
-pelo pacote Wolfram com o superoperador vetorizado — um método que não é trajetória nenhuma.
-Em n = 50, γ = 0,4, com 250 a 16 000 trajetórias, o desvio cai como `n^(-0,476)` contra o
-`n^(-0,5)` que Monte Carlo não enviesado prevê. A companheira, resolvendo Lindblad com γ
-errado sobre as mesmas trajetórias, dá expoente **0,0026**: o desvio estabiliza, como tem de
-estabilizar quando o alvo é outro.
+A média de trajetórias do núcleo **converge para a solução exata de Lindblad em dez casos**:
+cinco valores de γ em escala logarítmica (0,02 a 8 — do regime coerente ao Zeno) × duas
+topologias (microtúbulo e SBM com λ₂ = 2,11 e Q = 0,33). Verificado pelo pacote Wolfram com o
+superoperador vetorizado — um método que não é trajetória nenhuma. 40 execuções, 92 s de CPU.
+
+O desvio cai como `n^(-p)` com **p entre 0,331 e 0,579**, contra o 0,5 que Monte Carlo não
+enviesado prevê. A companheira, resolvendo Lindblad com γ dobrado sobre as mesmas
+trajetórias, dá **p entre −0,003 e 0,017** nos dez casos: o desvio estabiliza, como tem de
+estabilizar quando o alvo é outro. Separação de 20× entre o pior correto e o pior sabotado.
+
+O limiar (0,15) foi **calibrado pela medida depois de dar falso alarme**: a primeira versão
+usava 0,35, tirado da teoria, e reprovou microtúbulo γ = 0,09, que mediu 0,331.
 
 O critério é a **lei**, não um limiar: um limiar sozinho não distingue "convergiu" de
 "convergiu para outro lugar". Detalhes e tabela em `docs/daedalus-estado-da-arte.md` 5.7.

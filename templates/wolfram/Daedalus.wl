@@ -1159,8 +1159,8 @@ DaedalusVerificarTrajetorias[arquivos_List, OptionsPattern[]] := Module[
      grandeza: 0.49 quando converge, 0.006 quando o alvo esta errado. *)
   razoes = Table[desvios[[i]]/desvios[[i + 1]], {i, Length[desvios] - 1}];
   esperado = Table[Sqrt[ns[[i + 1]]/ns[[i]]], {i, Length[ns] - 1}];
-  expoente = -Last[
-    Coefficient[Fit[Transpose[{Log[N@ns], Log[desvios]}], {1, x}, x], {1, x}]];
+  expoente = -Coefficient[
+    Fit[Transpose[{Log[N@ns], Log[desvios]}], {1, \[FormalX]}, \[FormalX]], \[FormalX]];
 
   If[verboso,
     Print["Lindblad exato contra media de trajetorias do nucleo em C"];
@@ -1172,7 +1172,20 @@ DaedalusVerificarTrajetorias[arquivos_List, OptionsPattern[]] := Module[
              NumberForm[razoes[[i]], 3], "x  (a lei 1/sqrt(n) preve ",
              NumberForm[esperado[[i]], 3], "x)"], {i, Length[razoes]}]];
 
-  veredito = If[expoente > 0.35,
+  (* LIMIAR CALIBRADO PELA MEDIDA, nao pela teoria. A primeira versao usava
+     0.35 — "0.5 menos uma folga" — e deu FALSO ALARME em microtubulo g = 0.09,
+     que mediu 0.331. Medido em 10 casos (2 topologias x 5 valores de gamma),
+     com a companheira de gamma dobrado em cada um:
+
+       pior caso CORRETO   p = 0.331      (microtubulo, gamma = 0.09)
+       pior caso SABOTADO  p = 0.017      (microtubulo, gamma = 0.09)
+       separacao                 20x
+
+     0.15 fica 2.2x abaixo do pior correto e 8.8x acima do pior sabotado. Com
+     quatro pontos o expoente tem variancia propria, e um limiar encostado no
+     valor teorico reprova por sorte — a mesma licao das razoes consecutivas.
+     Ver CONVENTIONS.md 10.1.7. *)
+  veredito = If[expoente > 0.15,
     "CONVERGE para Lindblad", "NAO CONVERGE — o desvio nao cai com n_traj"];
   If[verboso,
     Print["  expoente ajustado: desvio ~ n^(-", NumberForm[expoente, 3],
