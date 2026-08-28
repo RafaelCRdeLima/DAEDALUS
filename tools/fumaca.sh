@@ -13,3 +13,7 @@ for _ in 1 2 3 4 5 6 7 8 9 10; do
   sleep 1
 done
 node tools/fumaca.mjs http://localhost:4173/
+# Mesmo servidor, segunda pergunta: a vista do tubo desenha, e GIRAR muda a
+# figura. A segunda metade e que e o teste — "o tubo aparece" passaria tambem
+# com uma projecao sem profundidade.
+node tools/fumaca_tubo.mjs http://localhost:4173/

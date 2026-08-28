@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useT } from '../i18n/react.ts';
 import { Heatmap } from '../gl/heatmap';
 import { MAX_ARESTAS_DESENHADAS, Nuvem } from '../gl/nuvem';
+import { ELEVACAO_PADRAO, Tubo } from '../gl/tubo';
+import { compressaoParaCaber, coordenadasTubo } from '../nucleo/tubo.ts';
 import { empacotarLattice, sitioNoTexel } from '../nucleo/indices';
 import { gradienteCss } from '../nucleo/paleta';
 import { bytesDosQuadros, passoParaCaber, passosDosQuadros, quadroDoPasso } from '../nucleo/quadros.ts';
@@ -46,6 +48,13 @@ export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const heatRef = useRef<Heatmap | null>(null);
   const nuvemRef = useRef<Nuvem | null>(null);
+  const tuboRef = useRef<Tubo | null>(null);
+  const canvasTubo = useRef<HTMLCanvasElement>(null);
+  /* Orientação em REF, não em estado: arrastar dispara dezenas de eventos por
+     segundo, e re-renderizar a interface inteira a cada um deles trava o giro
+     justamente quando o usuário está tentando entender a forma. */
+  const orientRef = useRef<[number, number]>([0, ELEVACAO_PADRAO]);
+  const arrasto = useRef<{ x: number; y: number; moveu: boolean } | null>(null);
   const canvasNuvem = useRef<HTMLCanvasElement>(null);
   const arestasRef = useRef<Array<[number, number, number]> | null>(null);
   const workerRef = useRef<Worker | null>(null);
@@ -104,7 +113,17 @@ export default function App() {
   /* 'desenrolada' só existe quando o gerador deu a rede desenrolada; 'propria'
      quando ele deu geometria de verdade (linha, ciclo, grade); 'espectral' vale
      para qualquer grafo, e é o padrão de quem não tem geometria nenhuma. */
-  const [vista, setVista] = useState<'desenrolada' | 'propria' | 'espectral'>('desenrolada');
+  const [vista, setVista] = useState<'desenrolada' | 'propria' | 'espectral' | 'tubo'>('desenrolada');
+  /* seam_shift vem do spec CANÔNICO que o núcleo devolveu, não do controle na
+     tela: é o número que construiu a rede desenhada. Lendo o controle, mexer
+     nele sem regerar deixaria o cilindro descrevendo um grafo que não está ali,
+     e a discordância não apareceria como erro — apareceria como uma hélice
+     ligeiramente errada, que ninguém confere de olho. */
+  const [seamShift, setSeamShift] = useState(0);
+  /* Falso = eixo encurtado para caber; verdadeiro = escala métrica. O fator
+     aparece na tela nos dois casos: uma distorção silenciosa seria pior que
+     nenhuma vista. */
+  const [tuboMetrico, setTuboMetrico] = useState(false);
   const [xyEspectral, setXyEspectral] = useState<Float32Array | null>(null);
   const [xyProprio, setXyProprio] = useState<Float32Array | null>(null);
 
@@ -149,6 +168,15 @@ export default function App() {
     largura: rede?.nPar || 1, altura: rede?.nPerp || 1,
   }), [rede]);
   const xyVista = vista === 'espectral' ? xyEspectral : xyProprio;
+  /* O cilindro é derivado de (m, q), como o núcleo previu: o grafo tem
+     topologia, não geometria tridimensional, e o tubo é uma leitura dela. */
+  const compressaoTubo = useMemo(
+    () => (rede && !tuboMetrico ? compressaoParaCaber(rede.nPar, rede.nPerp) : 1),
+    [rede, tuboMetrico]);
+  const xyzTubo = useMemo(
+    () => (rede && rede.geom === 2
+      ? coordenadasTubo(rede.nPar, rede.nPerp, seamShift, compressaoTubo) : null),
+    [rede, seamShift, compressaoTubo]);
 
   const desenhar = useCallback((pop: Float32Array) => {
     if (!rede) return;
@@ -161,6 +189,8 @@ export default function App() {
       if (!h) return;
       h.desenhar(empacotarLattice(pop, forma.largura, forma.altura),
                  forma.largura, forma.altura, usado);
+    } else if (vista === 'tubo') {
+      tuboRef.current?.desenhar(pop, usado);
     } else {
       const nu = nuvemRef.current;
       if (!nu || !xyVista) return;
@@ -191,6 +221,11 @@ export default function App() {
           arestasRef.current = m.arestas ?? null;
           setXyProprio(m.xy);
           setXyEspectral(null);
+          /* Do spec canônico: é a conta que o NÚCLEO fez, depois dos padrões. */
+          try {
+            const c = JSON.parse(m.canonico);
+            setSeamShift(Number(c?.graph?.params?.seam_shift ?? 0));
+          } catch { setSeamShift(0); }
           /* rede desenrolada é o padrão quando existe; layout espectral quando
              o gerador não sabe dar geometria nenhuma. */
           setVista(m.rede.geom === 2 ? 'desenrolada'
@@ -258,10 +293,16 @@ export default function App() {
   useEffect(() => {
     try {
       if (vista === 'desenrolada') {
-        nuvemRef.current = null;
+        nuvemRef.current = null; tuboRef.current = null;
         if (canvasRef.current) heatRef.current = new Heatmap(canvasRef.current);
+      } else if (vista === 'tubo') {
+        heatRef.current = null; nuvemRef.current = null;
+        if (canvasTubo.current) {
+          tuboRef.current = new Tubo(canvasTubo.current);
+          tuboRef.current.orientar(orientRef.current[0], orientRef.current[1]);
+        }
       } else {
-        heatRef.current = null;
+        heatRef.current = null; tuboRef.current = null;
         if (canvasNuvem.current) nuvemRef.current = new Nuvem(canvasNuvem.current);
       }
     } catch (e: any) { setErro(String(e?.message ?? e)); }
@@ -273,7 +314,8 @@ export default function App() {
      desenhado, e o layout o redimensiona depois — e aconteceria também ao
      mexer na janela. */
   useEffect(() => {
-    const alvos = [canvasRef.current, canvasNuvem.current].filter(Boolean) as HTMLCanvasElement[];
+    const alvos = [canvasRef.current, canvasNuvem.current, canvasTubo.current]
+      .filter(Boolean) as HTMLCanvasElement[];
     if (alvos.length === 0 || typeof ResizeObserver === 'undefined') return;
     const ro = new ResizeObserver(() => {
       const q = quadrosRef.current[Math.min(cursor, quadrosRef.current.length - 1)];
@@ -291,12 +333,20 @@ export default function App() {
   }, [vista, xyEspectral, rede, worker]);
 
   useEffect(() => {
-    if (vista === 'desenrolada' || !nuvemRef.current || !xyVista || !rede) return;
+    if (vista === 'desenrolada' || vista === 'tubo' || !nuvemRef.current || !xyVista || !rede) return;
     nuvemRef.current.rede(xyVista, rede.n, arestasRef.current);
     const q = quadrosRef.current[Math.min(cursor, quadrosRef.current.length - 1)];
     if (q) desenharRef.current(q.pop);
     /* eslint-disable-next-line */
   }, [vista, xyVista, rede]);
+
+  useEffect(() => {
+    if (vista !== 'tubo' || !tuboRef.current || !xyzTubo || !rede) return;
+    tuboRef.current.rede(xyzTubo, rede.n, arestasRef.current);
+    const q = quadrosRef.current[Math.min(cursor, quadrosRef.current.length - 1)];
+    if (q) desenharRef.current(q.pop);
+    /* eslint-disable-next-line */
+  }, [vista, xyzTubo, rede]);
 
   const carregar = () => {
     setErro(null); setFase('f_gerando'); setImportado(null);
@@ -356,6 +406,39 @@ export default function App() {
   };
   const clicarNuvem = (ev: React.MouseEvent<HTMLCanvasElement>) => {
     if (nuvemRef.current) marcar(nuvemRef.current.sitioNoEvento(ev));
+  };
+
+  /* GIRAR E CLICAR NO MESMO GESTO. Arrastar gira o tubo; soltar sem ter
+     arrastado marca o vértice. Sem o limiar de deslocamento, todo giro
+     terminaria escolhendo um sítio novo — o usuário perderia a origem da
+     caminhada só por ter olhado o outro lado do cilindro. */
+  const tuboDesce = (ev: React.PointerEvent<HTMLCanvasElement>) => {
+    arrasto.current = { x: ev.clientX, y: ev.clientY, moveu: false };
+    /* A captura é conveniência — o giro continua se o ponteiro sair do canvas —
+       e não é garantida: um ponteiro sintético não existe para o navegador e
+       setPointerCapture lança. Sem o try, o giro morreria na primeira linha do
+       gesto e a vista pareceria travada. */
+    try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch { /* segue */ }
+  };
+  const tuboMove = (ev: React.PointerEvent<HTMLCanvasElement>) => {
+    const a = arrasto.current, tb = tuboRef.current;
+    if (!a || !tb) return;
+    const dx = ev.clientX - a.x, dy = ev.clientY - a.y;
+    if (!a.moveu && Math.hypot(dx, dy) < 4) return;
+    a.moveu = true; a.x = ev.clientX; a.y = ev.clientY;
+    /* horizontal aponta o EIXO para dentro ou para fora; vertical GIRA o tubo
+       em torno do próprio eixo, trocando que protofilamento fica de frente */
+    const [az, el] = orientRef.current;
+    orientRef.current = [az + dy * 0.007, el + dx * 0.007];
+    tb.orientar(orientRef.current[0], orientRef.current[1]);
+    orientRef.current = tb.orientacao();          /* a trava do polo é dele */
+    const q = quadrosRef.current[Math.min(cursor, quadrosRef.current.length - 1)];
+    if (q) desenharRef.current(q.pop);
+  };
+  const tuboSobe = (ev: React.PointerEvent<HTMLCanvasElement>) => {
+    const a = arrasto.current;
+    arrasto.current = null;
+    if (a && !a.moveu && tuboRef.current) marcar(tuboRef.current.sitioNoEvento(ev));
   };
 
   /* A reimportação é a única entrada que não nasce aqui: o spec embutido no CSV
@@ -490,6 +573,10 @@ export default function App() {
           <div className="mapa">
             {vista === 'desenrolada'
               ? <canvas ref={canvasRef} onClick={clicarLattice} />
+              : vista === 'tubo'
+              ? <canvas ref={canvasTubo} className="giravel"
+                        onPointerDown={tuboDesce} onPointerMove={tuboMove}
+                        onPointerUp={tuboSobe} onPointerCancel={tuboSobe} />
               : <canvas ref={canvasNuvem} onClick={clicarNuvem} />}
           </div>
           {/* O nome do layout em uso fica visível: a figura muda de significado
@@ -498,12 +585,18 @@ export default function App() {
             {rede?.geom === 2 && (
               <button className={vista === 'desenrolada' ? 'sel' : ''}
                       onClick={() => setVista('desenrolada')}>{t('v_desenrolada')}</button>)}
+            {rede?.geom === 2 && (
+              <button className={vista === 'tubo' ? 'sel' : ''}
+                      onClick={() => setVista('tubo')}>{t('v_tubo')}</button>)}
             {rede && rede.geom === 1 && (
               <button className={vista === 'propria' ? 'sel' : ''}
                       onClick={() => setVista('propria')}>{t('v_propria')}</button>)}
             <button className={vista === 'espectral' ? 'sel' : ''}
                     onClick={() => setVista('espectral')}>{t('v_espectral')}</button>
             <span className="espaco" />
+            {vista === 'tubo' && (
+              <label className="caixa"><input type="checkbox" checked={tuboMetrico}
+                     onChange={(e) => setTuboMetrico(e.target.checked)} /> {t('v_tubo_metrico')}</label>)}
             {vista === 'espectral' && rede && rede.n > MAX_ARESTAS_DESENHADAS &&
               <span className="dica">{t('v_sem_arestas')}</span>}
             {vista === 'espectral' && !xyEspectral && rede && rede.n > 20000 &&
@@ -516,6 +609,12 @@ export default function App() {
             <span>|ψⱼ|²</span>
           </div>
           {vista === 'espectral' && <p className="dica">{t('v_espectral_dica')}</p>}
+          {vista === 'tubo' && <p className="dica">{t('v_tubo_dica')}</p>}
+          {vista === 'tubo' && (
+            <p className={compressaoTubo < 1 ? 'aviso' : 'dica'}>
+              {t('v_tubo_escala', { fator: compressaoTubo.toFixed(2) })}
+            </p>)}
+          {vista === 'tubo' && fechado && <p className="dica">{t('v_tubo_fechado')}</p>}
           <Metricas itens={metricas} />
           <div className="transporte">
             <button onClick={() => setTocando((v) => !v)}

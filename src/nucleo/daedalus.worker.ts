@@ -25,9 +25,14 @@ self.onmessage = async (ev: MessageEvent) => {
       case 'carregar': {
         const d = await garante();
         const rede = d.carregar(msg.spec);
-        /* Arestas só quando cabem na tela: acima de 2000 vértices elas viram
-           mancha e o custo de copiá-las não compra nada. */
-        const arestas = rede.n <= 2000 ? d.arestas() : null;
+        /* Arestas só quando cabem na tela. O teto era 2000, calibrado para a
+           nuvem espectral, onde acima disso elas viram mancha. No tubo é o
+           contrário: a estrutura é regular, e são as arestas que fazem o
+           cilindro parecer cilindro — sem elas sobra uma poeira de pontos e o
+           3D não se anuncia. O microtúbulo padrão tem 2080 vértices, ou seja,
+           caía do lado errado do teto antigo por 80. Cada renderizador
+           continua com o seu próprio limite de DESENHO. */
+        const arestas = rede.n <= 8000 ? d.arestas() : null;
         self.postMessage({
           tipo: 'rede', rede,
           xy: d.posicoes().slice(), modulos: d.modulos().slice(),

@@ -30,13 +30,34 @@ const EXPR = `(() => {
   if (!c) return 'FALHA: sem canvas';
   const gl = c.getContext('webgl2');
   if (!gl) return 'FALHA: sem contexto webgl2';
-  const L = 96, px = new Uint8Array(4 * L * L);
-  gl.readPixels(0, 0, L, L, gl.RGBA, gl.UNSIGNED_BYTE, px);
-  let vivos = 0;
-  for (let i = 0; i < px.length; i += 4) if (px[i] + px[i+1] + px[i+2] > 40) ++vivos;
-  const frac = vivos / (L * L);
-  if (frac < 0.5) return 'FALHA: mapa quase preto (' + (100*frac).toFixed(1) + '% de pixels vivos)';
-  return 'ok  |1-norma|=' + m[1] + '  pixels vivos=' + (100*frac).toFixed(1) + '%';
+  /* CANVAS INTEIRO, e o criterio e CONTRASTE.
+     O limiar era 40 e cor(0) soma 16+26+36 = 78: abaixo dele, "pixels vivos"
+     contava o proprio mapa desenhado todo no zero da rampa, media 100%, e o
+     guarda de "mapa quase preto" nao podia disparar no caso que ele nomeia.
+     Mas exigir uma FRACAO alta acima de cor(0) tambem esta errado, e por
+     motivo fisico: no primeiro quadro a excitacao esta num sitio so, e o mapa
+     DEVE estar quase todo em cor(0). Foi o que a primeira correcao fez, e ela
+     reprovou uma corrida legitima.
+     O que distingue "desenhou" de "nao desenhou" nos dois casos e o contraste.
+     E so o maximo serve como criterio: a FRACAO acima de cor(0) depende de qual
+     quadro da animacao esta na tela quando o teste dispara, e medimos 0,29% e
+     4,4% em duas corridas iguais. Um limiar sobre ela seria um teste que
+     reprova por acaso, que e pior que um que nao reprova nunca. Ela continua
+     no relatorio como informacao, sem ser porta.
+     Medido na corrida padrao: min = 78 (exatamente cor(0)) e max = 677. Um mapa
+     inteiro no zero da rampa daria max = 78 e reprova. */
+  const L = gl.drawingBufferWidth, A = gl.drawingBufferHeight;
+  const px = new Uint8Array(4 * L * A);
+  gl.readPixels(0, 0, L, A, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  let vivos = 0, maxS = 0;
+  for (let i = 0; i < px.length; i += 4) {
+    const v = px[i] + px[i+1] + px[i+2];
+    if (v > maxS) maxS = v;
+    if (v > 80) ++vivos;
+  }
+  const frac = vivos / (L * A);
+  if (maxS < 200) return 'FALHA: mapa sem contraste, maximo ' + maxS + ' contra cor(0)=78';
+  return 'ok  |1-norma|=' + m[1] + '  acima de cor(0)=' + (100*frac).toFixed(2) + '%  max=' + maxS;
 })()`;
 
 /* O navegador considera "pronto" qualquer valor verdadeiro, e "FALHA: ..." é

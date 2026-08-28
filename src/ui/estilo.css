@@ -231,3 +231,12 @@ button.primario { border-color: #2C77A8; color: var(--dd-mode-lab-fg); }
 
 .transporte .num { white-space: nowrap; }
 .num.fraco { color: var(--dd-wax); font-size: 11px; }
+
+/* O tubo se gira arrastando, e o cursor precisa dizer isso antes do gesto:
+   uma figura 3D que ninguem sabe que gira e uma figura 2D confusa.
+   `image-rendering` volta ao padrao porque aqui os pontos sao redondos e
+   suavizados, nao texels de uma grade. */
+.mapa canvas.giravel {
+  cursor: grab; image-rendering: auto; touch-action: none;
+}
+.mapa canvas.giravel:active { cursor: grabbing; }

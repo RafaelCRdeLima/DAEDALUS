@@ -246,6 +246,62 @@ paridade assere que as quatro línguas têm exatamente as mesmas chaves.
 duas disciplinas metodológicas, o que o rodapé está dizendo, a costura, e por
 que azul e bronze não são decoração.
 
+### Terceira vista: o tubo em 3D
+
+Além da rede desenrolada e do layout espectral, o microtúbulo pode ser visto
+**enrolado**. O núcleo já previa isso — ele guarda `xy = (m, q)` e o comentário
+do gerador diz que "o cilindro 3D a interface deriva de (m, q)". O grafo tem
+topologia, não geometria tridimensional; o tubo é uma leitura dela.
+
+**O embutimento é helicoidal**, `z = m + seam·q/n⊥`, e não anéis planos. Com
+anéis planos a costura salta `seam` unidades no eixo e aparece como uma cicatriz
+atravessando o tubo. Ela não é isso: no microtúbulo a costura é descontinuidade
+de **rede** — contato α–α onde o resto tem α–β — não de forma. Com a hélice,
+toda ligação lateral fica com o mesmo comprimento, a da costura inclusive, e ela
+some da forma permanecendo na topologia. `src/nucleo/tubo.test.ts` mede isso, e
+mede junto que o empilhamento ingênuo falharia — senão a afirmação passa
+sozinha.
+
+**O eixo é comprimido, e o fator vai para a tela.** No padrão são 160 anéis de
+13 protofilamentos: proporção 39:1, um fio de cabelo. Não há ângulo de câmera
+que resolva. A compressão quebra de propósito a comparação entre distância
+longitudinal e lateral — então ela é declarada em ×N no painel, com uma
+alternância para escala métrica. A vista existe para mostrar como a rede se
+FECHA, que é pergunta topológica; para a métrica existe o ×1.
+
+**O que codifica profundidade**, e o que não pode: cor e raio já significam
+|ψ_j|², então sobram perspectiva na posição, oclusão por teste de profundidade,
+e as arestas desbotando com a distância — elas já eram contexto, não conteúdo. E
+o giro, que é do usuário: arrastar resolve o que uma projeção estática deixe
+ambíguo.
+
+A projeção é feita **em JS uma vez por mudança de orientação**, não no shader:
+o clique precisa saber onde cada vértice foi parar, e duas implementações da
+mesma conta divergem — a divergência apareceria como "clico num vértice e
+seleciona o vizinho", que ninguém lê como erro de matriz.
+
+`tools/fumaca_tubo.mjs` entrou no portão. Ele não pergunta se o tubo aparece —
+isso passaria com uma projeção sem profundidade, que faz uma faixa de pontos
+parecer um tubo visto de frente. Ele arrasta e exige que a figura **se
+reorganize**: 42 de 64 blocos mudam.
+
+#### Um guarda que não podia disparar
+
+Medindo o canvas para calibrar a vista nova, apareceu que o teste de fumaça
+antigo contava "pixels vivos" com limiar 40 — e `cor(0)` do mapa soma
+16+26+36 = **78**. O mapa desenhado inteiro no zero da rampa media 100% de
+pixels vivos, e o guarda de "mapa quase preto" não podia disparar justamente no
+caso que ele nomeia.
+
+A primeira correção — exigir fração alta acima de `cor(0)` — estava errada por
+motivo físico: no primeiro quadro a excitação está num sítio só e o mapa **deve**
+estar quase todo em `cor(0)`. E a fração varia entre execuções (0,29% e 4,4% em
+duas corridas iguais), porque depende de qual quadro está na tela; um limiar
+sobre ela reprovaria por acaso, que é pior que não reprovar nunca.
+
+O critério é **contraste**: `max` contra `cor(0)`. Estável em 677 contra 78, e um
+mapa inteiro no zero dá 78 e reprova.
+
 ### Publicação
 
 O compilado está em **https://daedalus-lab.pages.dev**, como bundle estático em
