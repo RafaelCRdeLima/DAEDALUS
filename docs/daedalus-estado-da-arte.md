@@ -350,6 +350,47 @@ que exige os autovalores de ρ — O(N³) uma vez por ponto da grade, não por t
 instantâneo em N = 520. Reportar `C_inter` (ℓ₁) e `C_rel` juntas põe o resultado dentro da
 teoria de recursos em vez de ao lado dela.
 
+#### `C_inter` JÁ É EMARANHAMENTO — a identificação é exata neste setor
+
+Não é uma analogia nem uma cota: no setor de **uma excitação**, a concurrence par a par entre
+os sítios `i` e `j` vale
+
+```
+C_ij = 2 |ρ_ij|
+```
+
+**exatamente**, para estado puro ou misto. O motivo é estrutural. O estado reduzido de dois
+sítios é um estado X na base {|00⟩, |01⟩, |10⟩, |11⟩}, e para ele a fórmula de Wootters dá
+`C = 2 max(0, |z| − √(ρ₀₀ ρ₁₁))`. Como o setor **nunca popula |11⟩** — não existem duas
+excitações — a subtração `√(ρ₀₀ ρ₁₁)` é identicamente zero e sobra `2|z| = 2|ρ_ij|`.
+
+Verificado numericamente contra a fórmula de Wootters completa em 4 200 pares de estados
+mistos aleatórios do setor: **discrepância relativa máxima 1,7e-08**, que é o arredondamento
+da própria rota por autovalores. E a companheira: com população em |11⟩ a identidade
+**quebra**, como tem de quebrar — Wootters dá 0 onde `2|ρ_ij|` dá 0,3.
+
+**Consequência.** `C_inter = Σ_{i∈M, j∈N, M≠N} |ρ_ij|` soma cada par não ordenado duas vezes,
+então ela é **exatamente `Σ C_ij` sobre pares de sítios em módulos diferentes**: a soma das
+concurrences entre módulos. As duas leituras são o mesmo número:
+
+| leitura | o que é |
+|---|---|
+| teoria de recursos | medida ℓ₁ de **coerência de bloco**, blocos = módulos |
+| emaranhamento | soma das **concurrences par a par** entre módulos |
+
+A correção de Wardle–Kronberg vale igual nas duas, porque o viés está em `|ρ_ij|`.
+
+**E a identidade tem prazo de validade, que convém escrever antes de alguém esbarrar nele.**
+Ela depende de `ρ₁₁ = 0`. Se a fase 2 ganhar amortecimento de amplitude com reexcitação, ou
+mais de uma excitação, `C_ij` volta a ser `2 max(0, |ρ_ij| − √(ρ₀₀ρ₁₁))` e o número plotado
+deixa de ser concurrence sem que nada quebre. É exatamente a classe de erro que este projeto
+persegue, e por isso fica registrado aqui.
+
+**O que NÃO temos**, e é informação diferente: emaranhamento na bipartição *módulo contra o
+resto*, que é multipartite e não par a par. Ele é computável do mesmo ρ — no setor de uma
+excitação a bipartição colapsa num problema efetivo de dois modos — mas é outro observável,
+com outra interpretação, e não sai de graça dos números já medidos.
+
 ### 5.2 Formulação precisa
 
 **Eixo horizontal — estrutura.** Parâmetro de controle `p` (fração religada, `|E|` fixo),
