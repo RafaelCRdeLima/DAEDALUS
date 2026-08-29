@@ -350,6 +350,89 @@ geometria, e o resultado nulo sobre a geometria em si.**
 Ele se sustenta sobre a **coerência resolvida por bloco como observável de transporte** — a
 ponte — e os outros achados entram como o que ela permite ver.
 
+## 5.6 POR QUE MICROTÚBULOS, ALÉM DA BIOLOGIA
+
+A pergunta é justa e fica mais aguda depois da Seção 4.3: se a costura e os 13 protofilamentos
+não produziram efeito distinguível, o que justifica investigá-los?
+
+### 5.6.1 O que existe de tecnologia real, e é mecânica
+
+Microtúbulos **já são** plataforma de engenharia, com literatura madura e financiada — mas
+como **objetos mecânicos**, não quânticos:
+
+- **Lançadeiras moleculares**: microtúbulos transportados por cinesina fixada em trilhos
+  litografados, carregando carga em escala nanométrica.
+- **Biossensores**: "smart dust" movido a cinesina, com microtúbulos funcionalizados capturando
+  e separando analitos marcados.
+- **Lab-on-chip**: redes de trilhos com junções, separadores direcionais e concentradores.
+- **Automontagem dirigida**: cinesina transportando nanofios de ouro sobre microtúbulos
+  imobilizados.
+
+Nada disso usa propriedade quântica alguma. É relevante mesmo assim, e por um motivo indireto
+que a Seção 5.6.3 desenvolve: **a infraestrutura existe**.
+
+### 5.6.2 O que existe de proposta quântica, e é contestado
+
+Há uma linha ativa, e em 2025–2026:
+
+- **Computação quântica escalável em microtúbulos** (arXiv:2505.20364, EPJ Plus 2025): o
+  interior do microtúbulo tratado como cavidade de QED de alto Q, com quDits codificados no
+  estado de dipolo da tubulina e **tempos de decoerência da ordem de 10⁻⁶ s** em condições
+  fisiológicas.
+- **Superradiância ultravioleta** em redes de triptofano, reportada experimentalmente, com
+  estados excitônicos super e subradiantes previstos por hamiltonianos efetivos não hermitianos.
+- **Engenharia de resposta óptica** de microtúbulos por simulação da rede de triptofanos mais
+  espectroscopia UV (arXiv:2604.18604, 2026) — enquadramento explicitamente de engenharia.
+
+**E há uma discrepância de sete ordens de grandeza que convém apontar.** O tempo de decoerência
+de 10⁻⁶ s afirmado no trabalho de computação quântica contrasta com a taxa de defasagem
+**medida** de 50 cm⁻¹ para éxcitons de triptofano, que corresponde a **~1e-13 s**. São graus de
+liberdade diferentes — dipolo de tubulina numa cavidade contra éxciton de triptofano — então
+não é contradição direta. Mas quem for construir argumento tecnológico precisa dizer **em qual
+dos dois** está apostando, porque a diferença entre eles é de 10⁷.
+
+Este trabalho aposta no éxciton, que é o que tem número medido.
+
+### 5.6.3 A justificativa honesta, e ela NÃO é que a topologia seja especial
+
+O argumento forte não é "microtúbulos são redes especiais". Nossos próprios dados dizem o
+contrário. O argumento forte é de **substrato**:
+
+1. **É uma rede modular de centenas de sítios que se automonta, monodispersa e idêntica.**
+   Não há rota de fabricação que produza, em escala, uma rede de 520 sítios com simetria de
+   ordem 13 e uma costura helicoidal controlada. A natureza produz aos bilhões, e tubulina
+   purificada se automonta *in vitro*. Como substrato, isso não tem concorrente nessa escala.
+2. **A infraestrutura de manipulação já existe** — purificação, padronização de superfície,
+   funcionalização, imageamento — construída pela linha mecânica da Seção 5.6.1. Um uso
+   excitônico a herda em vez de criá-la.
+3. **A rede de triptofanos é um sistema excitônico real**, com superradiância UV já medida.
+   Não é um modelo de brinquedo esperando realização; é a realização física da rede simulada.
+
+### 5.6.4 E o resultado nulo sobre a geometria AJUDA, em vez de atrapalhar
+
+Se a costura e os 13 protofilamentos não importam, e o que importa é λ₂ e Q, então o resultado
+**não fica preso ao microtúbulo** — ele vale para a classe de redes modulares com aqueles
+valores, e o microtúbulo passa a ser **um membro fisicamente realizável da classe**, não o
+objeto de estudo.
+
+Isso é exatamente o princípio declarado do projeto — *"o motor é geral para qualquer grafo, e a
+física de microtúbulo entra apenas como um dos geradores"* — chegando por via experimental em
+vez de por decisão de projeto.
+
+E dá a forma de escrita mais defensável: **o trabalho é sobre coerência resolvida por bloco em
+redes modulares; o microtúbulo entra como o caso em que a rede existe de fato.** Um referee que
+duvide de Orch-OR não tem por onde recusar isso, e um que trabalhe com microtúbulos ganha um
+resultado transferível.
+
+### 5.6.5 O que seria preciso para a justificativa virar programa
+
+- **A comparação contra SBM** (Seção 6, item 1) é o que converte "a geometria não importou" de
+  suspeita em resultado. Sem ela o argumento de classe fica sem base.
+- **Um número de acoplamento confiável** para a rede de triptofanos. É a incerteza dominante da
+  Seção 4.1, e ela vale mais que qualquer refinamento numérico deste lado.
+- **Decidir em qual grau de liberdade se aposta** — éxciton ou dipolo de tubulina. Os dois têm
+  literatura; a diferença entre os tempos de coerência é de sete ordens.
+
 ## 6. O que precisaria ser feito para isto virar resultado
 
 Em ordem de importância:
