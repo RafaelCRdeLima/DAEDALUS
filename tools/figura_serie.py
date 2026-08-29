@@ -73,7 +73,7 @@ for col, p in enumerate(PS):
         ('$p = 0$ — microtúbulo puro' if p == 0 else f'$p = {p:g}$ — religado') +
         r'   ($\lambda_2 = $' + ('0,006' if p == 0 else '0,204') + ')',
         fontsize=10.5, color=MARMORE, pad=8)
-    axs[1, col].set_xlabel(r'$\gamma t$')
+    axs[1, col].set_xlabel(r'tempo  $t$   (unidades de $\|H\|^{-1}$)')
     axs[1, col].set_ylim(-0.02, 1.02)
     for ax in (axs[0, col], axs[1, col]):
         ax.grid(True, lw=0.5, alpha=0.5)
@@ -90,11 +90,12 @@ cb.set_label(r'taxa de defasagem  $\gamma_{\rm deph}$', color=MARMORE)
 cb.ax.tick_params(colors=CERA, labelsize=8); cb.outline.set_edgecolor('#2A3A48')
 
 fig.text(0.5, 0.965, 'DAEDALUS — emaranhamento da rede ao longo do tempo, fase 2   ·   '
-         'microtúbulo 40×13, N = 520, 8 módulos   ·   8 000 trajetórias, 8 blocos   ·   '
+         'microtúbulo 40×13, N = 520, 8 módulos   ·   8 000 trajetórias   ·   '
+         r'$\|H\|$ normalizado a 1, logo $\gamma_{\rm deph}$ é adimensional   ·   '
          'estimador Wardle–Kronberg',
          ha='center', fontsize=10.5, color=MARMORE)
 fig.text(0.5, 0.055,
-         'Em $\\gamma t = 0$ o emaranhamento vale ZERO exato — o estado é uma delta — e o ponto não cabe '
+         'Em $t = 0$ o emaranhamento vale ZERO exato — o estado é uma delta — e o ponto não cabe '
          'no eixo logarítmico.',
          ha='center', fontsize=8.5, color=CERA)
 fig.text(0.5, 0.022,
