@@ -424,6 +424,50 @@ redes modulares; o microtúbulo entra como o caso em que a rede existe de fato.*
 duvide de Orch-OR não tem por onde recusar isso, e um que trabalhe com microtúbulos ganha um
 resultado transferível.
 
+### 5.6.45 A GEOMETRIA IMPORTA — mas num nível mais básico do que eu supunha
+
+Ao montar o controle SBM, apareceu um fato estrutural que **derruba a suspeita da Seção 4.3**
+por um caminho que eu não tinha previsto.
+
+Com `N = 520`, 8 módulos e `|E| = 1024` — os mesmos do microtúbulo — o SBM com Q casado tem
+**8 a 13 componentes**. Grau médio 3,94 está abaixo do limiar de conectividade de um grafo
+aleatório, que é `ln(520) ≈ 6,25`. O microtúbulo, com exatamente as mesmas contagens, é
+conectado, porque numa rede toda vértice tem grau ≥ 2 por construção.
+
+E quando se aumenta a densidade até conectar, o λ₂ passa direto por cima da faixa toda:
+
+| SBM, grau médio | componentes | λ₂ (Q = 0,77) | λ₂ (Q = 0,43) |
+|---|---|---|---|
+| 3,99 | 12 | 0 | 0 |
+| 5,78 | 4 | 0 | 0 |
+| **7,81** | **1** | **0,494** | **0,870** |
+| 10,1 | 1 | 0,718 | 0,909 |
+| 15,6 | 1 | 1,379 | 4,511 |
+
+**Microtúbulo: λ₂ de 0,006 a 0,336, com grau médio 3,94.**
+
+As duas famílias **não se sobrepõem em λ₂**. Não existe SBM de N = 520 e 8 módulos que seja
+conectado e tenha λ₂ na faixa do microtúbulo — porque λ₂ baixo com conectividade exige
+estrutura **longa e quase unidimensional**, e grafos aleatórios não têm isso: eles são
+small-world por construção, com diâmetro ~log N.
+
+**A conclusão correta não é "a geometria não importa".** É:
+
+> Dado (λ₂, Q), a geometria pode não acrescentar nada — isso continua sem teste. Mas a
+> geometria **determina que combinações de (λ₂, Q, grau) são alcançáveis**, e o microtúbulo
+> alcança uma região que redes modulares aleatórias não alcançam de jeito nenhum na mesma
+> densidade.
+
+Isso reforça a justificativa da Seção 5.6.3 em vez de enfraquecê-la, e por um argumento melhor
+que o de substrato: o microtúbulo não é um membro qualquer da classe — ele é um membro de uma
+sub-região da classe que a construção aleatória não produz.
+
+**E torna impossível o controle que a Seção 5.6 pedia.** "SBM de mesma Q e mesmo λ₂" não
+existe. O controle que está rodando casa **Q** e usa a densidade mínima que conecta
+(|E| ≈ 2000, grau 7,7), com **dois confundimentos declarados**: o dobro das arestas e λ₂ três a
+dez vezes maior. Ele responde a uma pergunta mais fraca — "o comportamento em γ é o mesmo em
+outra região do espaço estrutural?" — e não à pergunta original, que não tem controle possível.
+
 ### 5.6.5 O que seria preciso para a justificativa virar programa
 
 - **A comparação contra SBM** (Seção 6, item 1) é o que converte "a geometria não importou" de

@@ -1,0 +1,10 @@
+#! core_hash daedalus 0.1.0  core 60a4dce01a4e6fb8  (26 arquivos)
+#! implementacao c
+#! conteudo varredura_fase2_CONTROLE_SBM
+#! n_traj 63000
+#! blocos 16
+#! estimador wardle_kronberg
+# CONTROLE: Q casado ao microtubulo linha a linha; |E| ~ 2000 (grau 7.7),
+# que e o minimo em que o SBM CONECTA. Com |E| = 1024 do microtubulo ele
+# tem 8 a 13 componentes. Os dois confundimentos estao declarados.
+p,gamma,lambda2,Q,N,n_traj,blocos,c_inter,sd_c_inter,vies_c_inter,ef,sd_ef,vies_ef,cov,corr,lambda2_ok,segundos
