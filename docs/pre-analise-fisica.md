@@ -361,7 +361,9 @@ entre famílias de grafo". **Mas ausência aqui é fraca**: com uma realização
 não tenho o direito de afirmar a saturação, então a novidade é de uma afirmação que ainda não
 está estabelecida. Ver Seção 6, item 2.
 
-Estatuto: **candidato a novidade, sem dado que o sustente ainda.**
+Estatuto: **RETIRADO.** O teste de janela (§5.8) mostra que ~78% do efeito é a condição
+`1/λ₂ ≲ t₁` — equilibração, com mecanismo publicado por Luppi, Benedetti & Smirne. O que
+sobra é o valor comum do platô, que é outra afirmação e mais fraca.
 
 ### 5.5.4 A resolução por módulo no regime de defasagem alta — o mais provável de ser novo
 
@@ -398,7 +400,7 @@ geometria, e o resultado nulo sobre a geometria em si.**
 |---|---|
 | defasagem só subtrai coerência | esperado por teorema; **medido**, não descoberto |
 | os dois ótimos se separam | **já publicado** (Sgroi 2023); aqui é extensão quantificada |
-| saturação em λ₂ ~ 0,1 | não encontrado, **e ainda não sustentado pelo dado** |
+| saturação em λ₂ ~ 0,1 | **RETIRADO** — é a condição `1/λ₂ ≲ t₁`, e o mecanismo já é publicado (§5.8) |
 | colapso da fração inter-módulo | **o mais provável de ser novo** |
 | geometria do microtúbulo é dispensável | resultado nulo, e o mais fácil de contestar sem o SBM |
 
@@ -581,6 +583,88 @@ modular — nisso ele é substituível. É interessante por alcançar, **conecta
 espaço estrutural, não na geometria em si.
 
 ![microtúbulo contra o controle SBM](../resultados/controle-sbm.png)
+
+## 5.8 A SATURAÇÃO EM λ₂ É, EM BOA PARTE, ARTEFATO DO RELÓGIO — retratação
+
+A Seção 3 chamou a saturação de "o efeito mais forte de todo o conjunto", e a 5.5.3 a listou
+como candidata a novidade. **As duas coisas precisam ser corrigidas.**
+
+### 5.8.1 O que λ₂ significa fisicamente, e o que isso previa
+
+λ₂ é o segundo menor autovalor da laplaciana, e ele tem significado direto: para difusão na
+rede, `dp/dt = −Lp`, os autovalores de `L` são taxas de relaxação. O primeiro é zero (a
+distribuição uniforme não relaxa); **λ₂ é a mais lenta das que sobram**. Portanto **`1/λ₂` é o
+tempo de atravessar o gargalo** da rede.
+
+Isso é conhecido e publicado. Luppi, Benedetti & Smirne (arXiv:2512.18873) enunciam para CTQW
+com defasagem: a convergência ao estado maximamente misto é governada pelo valor de Fiedler,
+com termo dominante `e^(−λ_F t)`; e no regime de defasagem forte, eliminação adiabática dá
+difusão clássica efetiva `ṗ = −(2/γ)Lp`, com modo mais lento `μ₂ ∼ 2λ_F/γ`.
+
+Convertendo os nossos λ₂ para as unidades de tempo da simulação:
+
+| p | λ₂ normalizado | **1/λ₂** | cabe em t₁ = 40? | `C_inter` |
+|---|---|---|---|---|
+| 0 | 0,00109 | **918** | não, 23× maior | **30,2** |
+| 0,083 | 0,02273 | 44 | no limite | 160,4 |
+| 0,25 | 0,03365 | 30 | sim | 175,8 |
+| 0,417 | 0,05330 | 19 | sim | 169,5 |
+
+A transição cai exatamente onde `1/λ₂` cruza a janela de observação. **Previsão: estique a
+janela e a "saturação" se move.**
+
+### 5.8.2 O teste, e um erro de desenho que vale registrar
+
+A primeira versão do teste rodou `t₁ = 400` mantendo `γ_def = 0,02` — e **confundiu duas
+variáveis**. Esticar a janela por 10× também deu à defasagem 10× mais tempo para agir:
+`γ_def·t₁` foi de 0,8 para 8. `C_inter` caiu de ~170 para ~2,2 em **todas** as células, e o
+resultado não distinguia "tudo equilibrou" de "tudo desfasou". Está guardado em
+`resultados/tempo-longo-CONFUNDIDO.csv` como registro.
+
+O desenho correto mantém **`γ_def·t₁` fixo**: `t₁ = 400` com `γ_def = 0,002`.
+
+### 5.8.3 O resultado
+
+| p | 1/λ₂ | `C_inter` (t₁ = 40) | `C_inter` (t₁ = 400) | razão |
+|---|---|---|---|---|
+| **0** | **918** | **30,15** | **113,76** | **3,77×** |
+| 0,083 | 44 | 160,43 | 165,86 | 1,03× |
+| 0,167 | 32 | 170,52 | 164,25 | 0,96× |
+| 0,25 | 30 | 175,76 | 168,23 | 0,96× |
+| 0,417 | 19 | 169,46 | 164,51 | 0,97× |
+
+**Só a célula cujo gargalo não cabia na janela se move — e ela sobe 3,77×.** Todas as outras
+ficam onde estavam, a 3% ou menos.
+
+O fator entre `p = 0` e o resto cai de **5,63× para 1,46×**: cerca de **78% do efeito era a
+janela**.
+
+### 5.8.4 O que isso obriga a retirar, e o que fica
+
+**Retirado:** "a saturação em λ₂ ~ 0,1 é candidata a novidade". Ela é, em boa parte, a
+condição `1/λ₂ ≲ t₁` — equilibração, não propriedade da rede. E o mecanismo já está
+publicado.
+
+**Fica, e com formulação melhor:** `C_inter` satura no mesmo valor (~165–176) para toda rede
+cujo gargalo caiba na janela de observação, **em ambas as famílias**, apesar de `|E|` e λ₂
+diferirem por fatores de 2 e de 10. O que satura é o estado equilibrado, e ele não depende
+dos detalhes estruturais acima do limiar.
+
+**E o resíduo de 1,46× não está explicado.** Mesmo com `t₁ = 400`, o gargalo de `p = 0` leva
+918 — ainda não cabe. Pode ser que o resíduo desapareça com janela ainda maior, ou pode haver
+algo além da equilibração. Não sabemos, e não vou afirmar.
+
+### 5.8.5 Como o erro apareceu
+
+Pela pergunta "o que significa fisicamente λ₂". Ela obrigou a sair da definição operacional —
+"o número que uso como eixo" — para o significado físico, e o significado físico
+**imediatamente previu** que a saturação poderia ser do relógio. A previsão era testável em
+duas horas.
+
+A lição é estreita e vale escrever: **um eixo escolhido por ser comparável precisa também ser
+entendido.** λ₂ foi adotado porque torna famílias de grafo comparáveis — razão metodológica
+correta — e usado por semanas sem que ninguém perguntasse o que ele mede. O erro estava
+disponível o tempo todo.
 
 ## 6. O que precisaria ser feito para isto virar resultado
 
