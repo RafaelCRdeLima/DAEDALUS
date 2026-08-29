@@ -117,40 +117,55 @@ em `p = 0,25` contra **0,61** em `p = 0`, e chega lá muito mais cedo.
 
 ## 4. Ponto de vista 1 — microtúbulos e Orch-OR
 
-### 4.1 Onde a biologia cai no plano
+### 4.1 Onde a biologia cai no plano — CORRIGIDO
 
-`γ_deph` é adimensional, medido contra ‖H‖ = 1. Para converter, com ħ = 6,58e-16 eV·s:
+A primeira versão desta seção estimou a defasagem por analogia (T₂ de dezenas de fs) e
+colocou a biologia em γ_deph ≈ 2 a 20. **A estimativa estava alta por até 10×.** A literatura
+de triptofanos em tubulina reporta uma taxa de defasagem pura **medida** de **50 cm⁻¹**, com
+batimentos coerentes durando ~600 fs.
 
-- acoplamento dipolar entre dímeros da ordem de **1 a 4 meV** → ‖H‖ ~ **1,5e12 a 6e12 rad/s**;
-- defasagem de éxciton molecular em proteína a temperatura ambiente, com T₂ de dezenas a uma
-  centena de femtossegundos → **1e13 a 1e14 s⁻¹**.
+Convertendo: 50 cm⁻¹ = 9,4e12 rad/s = 6,2 meV. Como γ_deph é adimensional contra ‖H‖, o que
+falta é o acoplamento — e **é ele o número incerto**:
 
-Isso põe a biologia em **γ_deph ≈ 2 a 20** nas nossas unidades — a **borda direita** da grade,
-dentro do regime de Zeno.
+| acoplamento J | ‖H‖ ≈ 4J | γ_deph adimensional |
+|---|---|---|
+| 5 cm⁻¹ | 20 cm⁻¹ | 2,5 |
+| 20 cm⁻¹ | 80 cm⁻¹ | 0,62 |
+| 50 cm⁻¹ | 200 cm⁻¹ | 0,25 |
+| 100 cm⁻¹ | 400 cm⁻¹ | 0,12 |
 
-### 4.2 E ali o emaranhamento é desprezível
+A janela plausível é **γ_deph ≈ 0,1 a 2,5**, uma ordem de grandeza de incerteza, e ela cai no
+**meio-direita** da grade — não no extremo de Zeno, como a primeira versão dizia.
 
-| p | unitário | γ = 8 | fator |
-|---|---|---|---|
-| 0 | 59,0 | 4,7e-06 | **1,3e7** |
-| 0,083 | 327 | 3,5e-04 | **9,3e5** |
-| 0,25 | 362 | 9,4e-03 | **3,9e4** |
+### 4.2 E ali o emaranhamento entre módulos está 2 a 4 ordens abaixo do coerente
 
-Quatro a sete ordens de grandeza abaixo do limite coerente. E o pouco que sobra é
-majoritariamente **intra**-módulo: a fração entre módulos cai de 0,87 para ~0,10 no mesmo
-percurso.
+Em `p = 0,25`, com o unitário exato valendo **362**:
 
-**Leitura honesta.** Isto não refuta Orch-OR, porque Orch-OR não é uma afirmação sobre este
-modelo. Mas remove um degrau específico do argumento: *se* o mecanismo depender de
-emaranhamento de longo alcance entre regiões distintas de um microtúbulo, sustentado por
-acoplamento dipolar contra defasagem térmica, então na faixa de parâmetros fisicamente
-plausível esse emaranhamento é **quatro a sete ordens de grandeza** menor do que no limite
-coerente, e quase todo ele é local.
+| γ_deph | `C_inter` | % do unitário |
+|---|---|---|
+| 0,02 | 175,8 | 48,6% |
+| 0,147 | 4,87 | **1,3%** |
+| 0,40 | 1,79 | **0,50%** |
+| 1,086 | 0,393 | **0,11%** |
+| 2,947 | 0,059 | **0,016%** |
+| 8,0 | 0,0094 | 0,003% |
 
-Isso é consistente com o que a literatura já dizia por outros caminhos, e acrescenta a
-**resolução por módulo**: não é só que a coerência total cai — a parte dela que atravessa
-módulos cai desproporcionalmente. Um regime de "coerência local sobrevive, coerência global
-não" é diferente de "tudo decai junto", e é o segundo que se costuma assumir.
+Na janela `0,1 ≤ γ_deph ≤ 2,5` isso é **0,02% a ~2% do valor coerente** — duas a quase quatro
+ordens de grandeza abaixo. Menos extremo do que a primeira versão afirmava, e ainda assim
+grande.
+
+E a fração que atravessa módulos cai mais rápido que o total: de 0,87 para ~0,10 ao longo do
+mesmo percurso (`resultados/emaranhamento-tempo.png`, painel inferior).
+
+**Leitura honesta.** Isto não refuta Orch-OR, que não é uma afirmação sobre este modelo. Remove
+um degrau específico: *se* o mecanismo depender de emaranhamento de longo alcance entre regiões
+distintas de um microtúbulo, sustentado por acoplamento dipolar contra defasagem térmica, então
+na faixa plausível esse emaranhamento é duas a quatro ordens menor que no limite coerente, e
+quase todo o que resta é local.
+
+**A incerteza dominante não é estatística, é do acoplamento.** Uma ordem de grandeza em J move
+a conclusão entre "1% do coerente" e "0,02% do coerente". Fechar essa incerteza vale mais que
+qualquer refinamento da varredura.
 
 ### 4.3 O que a costura NÃO fez
 
@@ -220,6 +235,121 @@ contra λ₂.
 
 ---
 
+## 5.5 REVISÃO BIBLIOGRÁFICA DOS ACHADOS — o que é mesmo novidade
+
+A varredura de 28/08 buscou contra a **pergunta**. Esta busca é contra os **achados**, que é
+outra coisa: um resultado pode ser novo como pergunta e velho como resposta. Cinco consultas
+dirigidas, e o saldo é mais modesto do que a primeira redação deste documento sugeria.
+
+### 5.5.1 "Não há ENAQT para coerência" — é esperado por TEOREMA
+
+Defasagem é uma **operação incoerente**, e monótonas de coerência não crescem sob operações
+livres: `C(Λ[ρ]) ≤ C(ρ)`. Isso é o alicerce da teoria de recursos, e vale para a norma ℓ₁.
+
+Então a afirmação "a defasagem só subtrai" **não é descoberta**. O que não decorre do teorema
+é o comportamento da dinâmica **completa**: aqui a evolução é `H + dissipador`, e `H` NÃO é
+incoerente — ele gera coerência. A defasagem redistribui população, e a população realimenta
+coerência via `H`. Nada impede, a priori, que mais ruído produza mais coerência num tempo
+posterior. **É exatamente esse mecanismo indireto que faz o ENAQT existir para transporte.**
+
+A contribuição, então, é ter **testado** se ele opera aqui. Não opera: `C_total` e `C_inter`
+decrescem monotonicamente em γ_deph em **30 de 30** verificações (dois valores de `p` × cinco
+tempos × as duas grandezas). A expectativa ingênua sobrevive à interação com um hamiltoniano
+que gera coerência — e sobrevive **precisamente onde a expectativa análoga para transporte
+falha**. É essa assimetria que separa os dois ótimos.
+
+Estatuto: **confirmação medida, não descoberta.** Vale meia frase num artigo, não uma seção.
+
+### 5.5.2 O compromisso transporte × coerência — JÁ ESTÁ NA LITERATURA
+
+Este é o achado que mais me obriga a recuar. **Sgroi, Zicari, Imparato & Paternostro**
+(arXiv:2211.09079) estudam "the interplay between optimal transport and different instances of
+dephasing noise affecting the system's coherence", usam **a norma ℓ₁** — a mesma medida — e
+concluem que as soluções ótimas sob defasagem "exhibit a higher loss of coherence in the
+quantum network state".
+
+Ou seja: **o compromisso qualitativo está publicado.** A primeira redação deste documento
+chamou a separação dos ótimos de "o resultado com maior chance de interessar". Isso precisa ser
+reescrito.
+
+O que resta de diferente, e é preciso ser específico porque a diferença é o que sobra:
+
+| | Sgroi et al. 2023 | aqui |
+|---|---|---|
+| tamanho | N = 7 | N = 520 |
+| topologia | completamente conectada, fixa | microtúbulo com religação a \|E\| fixo |
+| variável de projeto | energias de sítio | **topologia** |
+| coerência | ℓ₁ **global** | ℓ₁ **resolvida por bloco** |
+| eixo de reporte | — | **λ₂** |
+| separação dos ótimos | qualitativa | **fator 7 em γ, 19,9 σ** |
+
+A diferença que mais importa é a **variável de projeto**: otimizar energias de sítio e otimizar
+topologia são alavancas experimentais distintas, e a segunda é a que custa em arquitetura. E a
+resolução por bloco, que é onde vive o resto do trabalho.
+
+Estatuto: **extensão quantificada de um resultado conhecido**, não resultado novo. Escrever
+como "confirmamos e quantificamos em rede grande e com a topologia como variável", citando
+Sgroi.
+
+### 5.5.3 A saturação em λ₂ — não achei, com a ressalva de sempre
+
+Procurei por limiar/saturação de transporte quântico contra conectividade algébrica,
+atalhos de small-world com retorno decrescente, e o efeito da religação no gap espectral. O que
+apareceu de mais próximo foi **arXiv:2608.19130** (2026), que reporta transporte coerente
+**máximo em probabilidade de ligação intermediária** e decrescente ao aproximar da conexão
+total — um ótimo não monotônico em conectividade, que é parente mas não é o mesmo que
+saturação a partir de um limiar em λ₂.
+
+Não encontrei o enunciado "o ganho satura quando λ₂ passa de um valor, e o valor é comparável
+entre famílias de grafo". **Mas ausência aqui é fraca**: com uma realização de grafo por `p` eu
+não tenho o direito de afirmar a saturação, então a novidade é de uma afirmação que ainda não
+está estabelecida. Ver Seção 6, item 2.
+
+Estatuto: **candidato a novidade, sem dado que o sustente ainda.**
+
+### 5.5.4 A resolução por módulo no regime de defasagem alta — o mais provável de ser novo
+
+A afirmação é: não é só que a coerência total cai com a defasagem — a **fração dela que
+atravessa módulos** cai desproporcionalmente, de 0,87 para ~0,10.
+
+As consultas de 28/08 já haviam estabelecido que a teoria de recursos de coerência de bloco e a
+literatura de transporte **não se encontraram** (consultas 5 e 6, 8 e 10 resultados, nenhum
+fazendo o cruzamento). Esta afirmação está desse lado da lacuna: ela exige a partição, e é a
+partição que ninguém está usando.
+
+Estatuto: **o mais provável de ser novo dos quatro**, e é o que sustenta a ponte identificada
+como o valor do trabalho.
+
+### 5.5.5 O lado biológico — o quadro geral é conhecido, o detalhe não
+
+A dinâmica excitônica de triptofanos em microtúbulo é campo ativo, e vários dos números aqui
+já estão publicados: a taxa de defasagem de 50 cm⁻¹, os batimentos coerentes de ~600 fs, o
+ruído colorido derivado de dinâmica molecular, os estados superradiantes. O que este trabalho
+**não** acrescenta é qualquer coisa sobre a estrutura eletrônica ou o acoplamento — nós os
+tomamos como parâmetro.
+
+E há um resultado nosso que é **negativo sobre a especificidade biológica**: a costura e os 13
+protofilamentos não produziram efeito distinguível em lugar nenhum. Isso é publicável e é
+desconfortável para o enquadramento "inspirado em microtúbulo" — mas é o que o dado diz, e a
+comparação contra SBM na varredura (Seção 6, item 1) é o que confirma ou derruba.
+
+Estatuto: **contexto conhecido; a contribuição é a resolução por módulo aplicada a essa
+geometria, e o resultado nulo sobre a geometria em si.**
+
+### 5.5.6 Saldo
+
+| achado | estatuto |
+|---|---|
+| defasagem só subtrai coerência | esperado por teorema; **medido**, não descoberto |
+| os dois ótimos se separam | **já publicado** (Sgroi 2023); aqui é extensão quantificada |
+| saturação em λ₂ ~ 0,1 | não encontrado, **e ainda não sustentado pelo dado** |
+| colapso da fração inter-módulo | **o mais provável de ser novo** |
+| geometria do microtúbulo é dispensável | resultado nulo, e o mais fácil de contestar sem o SBM |
+
+**Conclusão de escrita:** o artigo não se sustenta sobre a separação dos ótimos, que tem dono.
+Ele se sustenta sobre a **coerência resolvida por bloco como observável de transporte** — a
+ponte — e os outros achados entram como o que ela permite ver.
+
 ## 6. O que precisaria ser feito para isto virar resultado
 
 Em ordem de importância:
@@ -245,11 +375,15 @@ Em ordem de importância:
 
 - Não há ENAQT para emaranhamento entre módulos: a defasagem só subtrai, e o ótimo é o limite
   unitário.
-- **As cristas de coerência e de transporte não coincidem** — fator 7 em γ, 19,9 σ. É o
-  resultado com maior chance de interessar, e responde H2b.
+- **As cristas de coerência e de transporte não coincidem** — fator 7 em γ, 19,9 σ. Responde
+  H2b, mas o compromisso qualitativo **já está publicado** (Sgroi et al. 2023, N = 7, ℓ₁
+  global); aqui é extensão quantificada com a topologia como variável de projeto.
 - Religar 8,3% das arestas a |E| fixo dá 5,3× em coerência entre módulos e três ordens de
   grandeza em transporte, e **satura** em λ₂ ~ 0,1.
-- Na faixa de defasagem fisicamente plausível para biologia, o emaranhamento entre módulos
-  está 4 a 7 ordens abaixo do coerente, e a fração inter-módulo colapsa de 0,87 para 0,10.
+- Na faixa plausível para biologia — **γ_deph ≈ 0,1 a 2,5**, corrigida com a taxa medida de
+  50 cm⁻¹ — o emaranhamento entre módulos está **2 a 4 ordens** abaixo do coerente, e a fração
+  inter-módulo colapsa de 0,87 para 0,10. A incerteza dominante é o acoplamento, não a
+  estatística.
+- **O que mais provavelmente é novo é a resolução por bloco**, não a separação dos ótimos.
 - **Nada nestes dados exigiu a geometria do microtúbulo**, e a comparação contra SBM na
   varredura é a lacuna mais importante.
