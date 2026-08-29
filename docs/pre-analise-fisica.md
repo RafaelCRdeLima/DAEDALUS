@@ -477,13 +477,61 @@ outra região do espaço estrutural?" — e não à pergunta original, que não 
 - **Decidir em qual grau de liberdade se aposta** — éxciton ou dipolo de tubulina. Os dois têm
   literatura; a diferença entre os tempos de coerência é de sete ordens.
 
+## 5.7 O CONTROLE SBM RODOU — e o quadro fica mais limpo
+
+49 células, mesma grade de γ, Q casado linha a linha, `|E| ≈ 2000` (a densidade mínima que
+conecta). Três resultados.
+
+### 5.7.1 "Sem ENAQT para coerência" replica
+
+`C_inter` é máximo na menor defasagem nas **sete** linhas do SBM também. O resultado negativo
+**não é artefato do microtúbulo** — vale nas duas famílias, e o decaimento é monótono em γ nas
+duas.
+
+### 5.7.2 A separação dos ótimos replica
+
+No SBM a eficiência tem máximo interior em 2 de 7 linhas (Q = 0,583 a 4,0 σ e Q = 0,352 a
+9,6 σ), enquanto `C_inter` é sempre máxima na borda. No microtúbulo era também 2 de 7. **O
+fenômeno de H2b não é específico da geometria.**
+
+### 5.7.3 E o platô é o mesmo — com uma exceção que é a resposta
+
+| λ₂ | família | `C_inter` |
+|---|---|---|
+| **0,006** | microtúbulo, sem religação | **30,2** |
+| 0,137 – 0,336 | microtúbulo religado | 160 – 176 |
+| 0,494 – 0,884 | SBM controle | 167 – 178 |
+
+**As duas famílias caem no mesmo platô, ≈ 172**, apesar de o SBM ter o dobro das arestas e λ₂
+de três a dez vezes maior. Que o platô sobreviva a essas duas diferenças diz que ele não é
+efeito de `|E|` nem de λ₂ dentro da faixa — é saturação.
+
+**A única célula que destoa é o microtúbulo sem religação**, em λ₂ = 0,006, com 5,5× menos
+coerência entre módulos. E é justamente a célula na região que o SBM **não consegue ocupar**.
+
+### 5.7.4 O que isso permite afirmar, e o que não
+
+**Permite:** dado λ₂ acima de ~0,1, a geometria do microtúbulo **não acrescenta nada** —
+uma rede modular aleatória entrega o mesmo `C_inter`, o mesmo decaimento monótono e a mesma
+separação de ótimos. A suspeita da Seção 4.3 fica **confirmada nessa região**.
+
+**Não permite:** afirmar o mesmo abaixo de λ₂ ~ 0,1, porque ali não há controle possível — o
+SBM desconecta. O ponto em que o microtúbulo é distinto é exatamente o ponto em que ele não
+tem com o que ser comparado.
+
+**E é isso que reposiciona o objeto.** O microtúbulo não é interessante por ser uma rede
+modular — nisso ele é substituível. É interessante por alcançar, **conectado e com grau médio
+4**, um λ₂ que a construção aleatória só atinge se desconectar. O interesse está na região do
+espaço estrutural, não na geometria em si.
+
+![microtúbulo contra o controle SBM](../resultados/controle-sbm.png)
+
 ## 6. O que precisaria ser feito para isto virar resultado
 
 Em ordem de importância:
 
-1. **SBM de mesma Q e mesmo λ₂ na varredura inteira.** É a única forma de separar o que é da
-   costura do que é da modularidade — e a Seção 4.3 suspeita que seja tudo modularidade. Sem
-   isso não se pode afirmar nada específico de microtúbulo. **Custo: outras 49 células.**
+1. ~~**SBM na varredura inteira.**~~ **FEITO** — ver Seção 5.7. Confirma a suspeita acima de
+   λ₂ ~ 0,1 e mostra que abaixo disso não existe controle possível.
 2. **Ensemble de grafos por célula.** Uma realização por `p` não sustenta a afirmação de
    saturação em λ₂. Com ~8 grafos por célula o custo multiplica por 8, ou reduz-se `n` na
    mesma proporção — e a sonda D diz que o desvio só cresce 13%, então reduzir `n` é aceitável.
