@@ -167,17 +167,73 @@ quase todo o que resta é local.
 a conclusão entre "1% do coerente" e "0,02% do coerente". Fechar essa incerteza vale mais que
 qualquer refinamento da varredura.
 
-### 4.3 O que a costura NÃO fez
+### 4.3 A COSTURA — retratação, e o que os dados de fato dizem
 
-A geometria específica do microtúbulo — 13 protofilamentos, costura de 3 dímeros — não
-aparece como efeito distinguível em nenhum lugar destes dados. O que domina é a
-**modularidade e a conectividade algébrica**, e o salto de 5,3× ao religar 8,3% das arestas é
-muito maior que qualquer coisa atribuível à costura.
+**A primeira redação desta seção estava errada.** Ela afirmava que "a geometria específica do
+microtúbulo — 13 protofilamentos, costura de 3 dímeros — não aparece como efeito distinguível
+em nenhum lugar destes dados".
 
-Isto é um resultado, e é o tipo de resultado que precisa ser dito: **a especificidade
-biológica da geometria não se mostrou necessária para nada do que foi medido.** Um SBM de
-mesmo λ₂ e mesmo Q provavelmente reproduziria o essencial — e essa comparação está feita no
-portão de Lindblad mas **não** na varredura, o que é a lacuna mais importante a fechar.
+Conferido: `seam_shift = 3` em **todos** os 49 specs da varredura, em todas as 14 séries e em
+todas as sondas. **A costura nunca foi variada.** A afirmação era inferência da comparação com
+SBM, que responde a outra pergunta — "uma rede modular aleatória dá o mesmo?" — e não a esta,
+que é "mudar a costura muda alguma coisa?".
+
+O erro veio por vocabulário: as buscas bibliográficas usaram "microtubule", "modular",
+"small-world", e nunca "nanotube" ou "chirality". E existe literatura ali: **Mareš, Novotný &
+Jex (arXiv:2001.03505)**, caminhada quântica em nanotubos de carbono, com **quiralidade como
+parâmetro central**, mostrando que ela *"splits behavior of the transport efficiency into a few
+typically well separated quantitative branches"*. Unitário, sem módulos, sem coerência — não
+ocupa o terreno — mas dizia o oposto do que eu havia afirmado.
+
+#### O teste, agora feito
+
+Sete valores de costura (0 a 6), em `p = 0` — onde a costura é a **única** feição estrutural
+variável — e três taxas de defasagem. 16 000 trajetórias por célula.
+
+A estrutura mal se mexe: `|E|` cai 0,6% (com pontas abertas, as arestas de costura que caem
+fora do cilindro somem), λ₂ sobe 20% monotonicamente, Q cai 4%, e todas as sete são conectadas.
+
+| costura | λ₂ | `C_inter` (γ = 0,02) | γ = 0,4 | γ = 8 |
+|---|---|---|---|---|
+| 0 | 0,00617 | 32,92 ± 0,21 | 0,0913 | 1,29e−06 |
+| 1 | 0,00620 | 33,54 ± 0,20 | 0,0852 | 1,23e−06 |
+| 2 | 0,00631 | **35,37 ± 0,21** | 0,0902 | 1,61e−06 |
+| **3** | 0,00649 | **30,29 ± 0,18** | 0,0916 | 1,55e−06 |
+| 4 | 0,00673 | 33,02 ± 0,20 | 0,1008 | 1,40e−06 |
+| 5 | 0,00705 | 32,82 ± 0,19 | 0,1003 | 1,40e−06 |
+| 6 | 0,00743 | 34,81 ± 0,21 | 0,0961 | 1,96e−06 |
+
+#### O que os dados dizem
+
+**A quiralidade produz efeito real.** No regime coerente a variação entre a menor e a maior
+costura é de **16,8%, a 18,4 σ**. Não é ruído.
+
+**Mas é pequeno.** Compare com os outros efeitos medidos:
+
+| variável | efeito em `C_inter` |
+|---|---|
+| religar 8,3% das arestas | **+430%** |
+| defasagem, ao longo da faixa | **4 a 7 ordens de grandeza** |
+| passo entre células vizinhas da grade | ~100% |
+| **costura, 0 a 6** | **17%** |
+
+**E — o ponto que mais importa — a variação NÃO é explicada por λ₂.** λ₂ cresce
+monotonicamente com a costura (0,00617 → 0,00743), mas `C_inter` não: o **mínimo** está na
+costura 3 e os máximos nas costuras 2 e 6. `|E|` também é monotônico, então também não
+explica. O efeito é **genuinamente geométrico**.
+
+Isso tem consequência para o eixo primário: **λ₂ não é descritor completo.** Ele captura a
+diferença grande — a saturação, confirmada nas duas famílias — e não captura esta, que é
+pequena e não monotônica.
+
+#### Uma observação a examinar, não a afirmar
+
+**A costura 3 — o valor biológico real — dá o mínimo de `C_inter` das sete**, no regime
+coerente. Com 18,4 σ não é acidente estatístico.
+
+Mas é **uma** realização de grafo, em **um** valor de `p`, e o efeito é de 17%. Não sustenta
+afirmação nenhuma sobre por que os microtúbulos têm essa quiralidade. Registro como coisa a
+examinar — com ensemble de grafos e mais valores de `p` — e não como resultado.
 
 ### 4.4 O que seria novo, se sobreviver
 
@@ -560,5 +616,6 @@ Em ordem de importância:
   inter-módulo colapsa de 0,87 para 0,10. A incerteza dominante é o acoplamento, não a
   estatística.
 - **O que mais provavelmente é novo é a resolução por bloco**, não a separação dos ótimos.
-- **Nada nestes dados exigiu a geometria do microtúbulo**, e a comparação contra SBM na
-  varredura é a lacuna mais importante.
+- **A costura produz efeito real mas pequeno** (17%, 18,4 σ) e **não capturado por λ₂** — que
+  portanto não é descritor completo. A afirmação anterior de que a geometria não importava
+  estava errada: ela nunca havia sido testada.
