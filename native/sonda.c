@@ -307,6 +307,108 @@ static int rodar_celula(dae_spec *S, int32_t n_total, int32_t blocos)
   return 0;
 }
 
+/* SERIE TEMPORAL do emaranhamento da rede.
+ *
+ * No setor de uma excitacao a concurrence par a par vale C_ij = 2|rho_ij|
+ * exatamente (estado X com |11> nunca populado), entao o emaranhamento TOTAL
+ * da rede e sum_{i!=j} |rho_ij| — que e a mesma soma da coerencia l1. Aqui ela
+ * sai decomposta em dentro e entre modulos, em cada instante amostrado.
+ *
+ * Com a correcao de Wardle-Kronberg, e ela e MAIS necessaria aqui que no plano:
+ * em t = 0 o estado e uma delta e quase todo rho_ij verdadeiro vale zero, que e
+ * exatamente onde o vies do |.| e maximo. Sem corrigir, a curva comecaria num
+ * patamar alto que e puro ruido e desceria — o oposto da fisica. */
+static int rodar_serie(dae_spec *S, int32_t n_total, int32_t blocos)
+{
+  dae_graph G; dae_csr H; dae_cheb W;
+  dae_traj_cfg cfg; dae_rho_acc cheio, bloco;
+  dae_status st;
+  double *tot_b, *int_b, *dt_b;
+  int32_t na, b, s2, i, j, por_bloco = n_total / blocos;
+
+  { dae_gen_params gp = S->gen; gp.seed = S->seed; st = dae_graph_build(&G, &gp); }
+  if (st != DAE_OK) { fprintf(stderr, "grafo: %s\n", dae_strerror(st)); return 1; }
+  st = dae_hamiltonian(&H, &G.A, S->ham, S->gamma, S->norm, S->lanczos_steps, NULL);
+  if (st != DAE_OK) return 1;
+  st = dae_cheb_init(&W, &H, S->lanczos_steps);
+  if (st != DAE_OK) return 1;
+
+  cfg.gamma_deph = S->gamma_deph; cfg.rho_stride = S->rho_stride;
+  cfg.nt = S->nt; cfg.dt = S->t1 / (double)S->nt;
+  cfg.sitio_inicial = S->init_site >= 0 ? S->init_site : 0;
+  cfg.saida = DAE_SAIDA_ACUMULAR_RHO; cfg.n_traj = por_bloco;
+  na = dae_traj_amostras(&cfg);
+
+  if (dae_rho_acc_init_wk(&cheio, G.n, na) != DAE_OK) return 1;
+  if (dae_rho_acc_init_wk(&bloco, G.n, na) != DAE_OK) return 1;
+  tot_b = (double *)calloc((size_t)blocos * (size_t)na, sizeof(double));
+  int_b = (double *)calloc((size_t)blocos * (size_t)na, sizeof(double));
+  dt_b  = (double *)calloc((size_t)na, sizeof(double));
+
+  for (b = 0; b < blocos; ++b) {
+    size_t k, tot = (size_t)na * (size_t)G.n * (size_t)G.n;
+    bloco.proxima = 0; bloco.somadas = 0;
+    memset(bloco.re, 0, tot * sizeof(double));
+    memset(bloco.im, 0, tot * sizeof(double));
+    memset(bloco.m2, 0, tot * sizeof(double));
+    st = dae_traj_ensemble(&cfg, S->seed + 1000003ULL * (uint64_t)(b + 1),
+                           &W, &H, &bloco, NULL, NULL);
+    if (st != DAE_OK) { fprintf(stderr, "bloco %d: %s\n", b, dae_strerror(st)); return 1; }
+    for (k = 0; k < tot; ++k) {
+      cheio.re[k] += bloco.re[k]; cheio.im[k] += bloco.im[k]; cheio.m2[k] += bloco.m2[k];
+    }
+    cheio.somadas += bloco.somadas;
+    dae_rho_acc_finalizar(&bloco);
+    for (s2 = 0; s2 < na; ++s2) {
+      double t = 0.0, e = 0.0;
+      for (i = 0; i < G.n; ++i)
+        for (j = 0; j < G.n; ++j) {
+          double m;
+          if (i == j) continue;
+          m = sqrt(dae_rho_acc_mod2_sem_vies(&bloco, s2, i, j, por_bloco));
+          t += m;
+          if (G.module_of[i] != G.module_of[j]) e += m;
+        }
+      tot_b[(size_t)b * (size_t)na + (size_t)s2] = t;
+      int_b[(size_t)b * (size_t)na + (size_t)s2] = e;
+    }
+  }
+  dae_rho_acc_finalizar(&cheio);
+
+  printf("passo,gamma_t,c_total,sd_total,c_inter,sd_inter,c_intra\n");
+  for (s2 = 0; s2 < na; ++s2) {
+    double t = 0.0, e = 0.0, mt = 0.0, me = 0.0, st_ = 0.0, se = 0.0;
+    for (i = 0; i < G.n; ++i)
+      for (j = 0; j < G.n; ++j) {
+        double m;
+        if (i == j) continue;
+        m = sqrt(dae_rho_acc_mod2_sem_vies(&cheio, s2, i, j, n_total));
+        t += m;
+        if (G.module_of[i] != G.module_of[j]) e += m;
+      }
+    for (b = 0; b < blocos; ++b) {
+      mt += tot_b[(size_t)b * (size_t)na + (size_t)s2];
+      me += int_b[(size_t)b * (size_t)na + (size_t)s2];
+    }
+    mt /= blocos; me /= blocos;
+    for (b = 0; b < blocos; ++b) {
+      const double dt2 = tot_b[(size_t)b * (size_t)na + (size_t)s2] - mt;
+      const double de2 = int_b[(size_t)b * (size_t)na + (size_t)s2] - me;
+      st_ += dt2 * dt2; se += de2 * de2;
+    }
+    st_ = sqrt(st_ / (blocos - 1)) / sqrt((double)blocos);
+    se  = sqrt(se  / (blocos - 1)) / sqrt((double)blocos);
+    printf("%d,%.17g,%.17g,%.17g,%.17g,%.17g,%.17g\n",
+           s2 * S->rho_stride,
+           S->gamma * (double)(s2 * S->rho_stride) * cfg.dt,
+           t, st_, e, se, t - e);
+  }
+  free(tot_b); free(int_b); free(dt_b);
+  dae_rho_acc_free(&cheio); dae_rho_acc_free(&bloco);
+  dae_cheb_free(&W); dae_csr_free(&H); dae_graph_free(&G);
+  return 0;
+}
+
 int main(int argc, char **argv)
 {
   dae_spec S;
@@ -338,6 +440,7 @@ int main(int argc, char **argv)
        provavelmente domina em p alto. */
     else if (strcmp(argv[i], "--grafo-varia") == 0) grafo_varia = 1;
     else if (strcmp(argv[i], "--celula") == 0) celula = 1;
+    else if (strcmp(argv[i], "--serie") == 0) celula = 2;
     else if (strcmp(argv[i], "--n") == 0 && i + 1 < argc) n_total = atoi(argv[++i]);
     else if (strcmp(argv[i], "--blocos") == 0 && i + 1 < argc) blocos = atoi(argv[++i]);
     else if (strcmp(argv[i], "--niveis") == 0 && i + 1 < argc) {
@@ -363,6 +466,7 @@ int main(int argc, char **argv)
     fprintf(stderr, "%s:%d:%d: %s\n", argv[1], (int)err.line, (int)err.col, err.msg);
     return 1;
   }
+  if (celula == 2) { int r2 = rodar_serie(&S, n_total, blocos); dae_spec_free(&S); return r2; }
   if (celula) { int r2 = rodar_celula(&S, n_total, blocos); dae_spec_free(&S); return r2; }
 
   { dae_gen_params gp = S.gen; gp.seed = S.seed; st = dae_graph_build(&G, &gp); }
